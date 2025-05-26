@@ -1,0 +1,202 @@
+[
+  {
+    "id": 1,
+    "name": "Martin Jacquot",
+    "email": "martin.jacquot@gov.mg",
+    "adress": "2, rue de Sauvage, Antananarivo, Madagascar",
+    "phone": "+261 34 9085091",
+    "email_verified_at": "2025-05-22T14:26:05.767610",
+    "password": "password",
+    "remember_token": "81e454f550a09e1db3776fdf256c627363c29edb"
+  },
+  {
+    "id": 2,
+    "name": "Denis Allain",
+    "email": "denis.allain@gov.mg",
+    "adress": "3, boulevard Vidal, Antananarivo, Madagascar",
+    "phone": "+261 34 8864864",
+    "email_verified_at": "2025-05-22T14:26:05.767755",
+    "password": "password",
+    "remember_token": "531a333024158bcfec5cbf31362e881b59589945"
+  },
+  {
+    "id": 3,
+    "name": "Sabine Camus",
+    "email": "sabine.camus@gov.mg",
+    "adress": "162, chemin Hubert, Antananarivo, Madagascar",
+    "phone": "+261 34 4234517",
+    "email_verified_at": "2025-05-22T14:26:05.767818",
+    "password": "password",
+    "remember_token": "3c43503981fe4c4fc02170a149c124557e7644a2"
+  },
+  {
+    "id": 4,
+    "name": "Caroline Morvan",
+    "email": "caroline.morvan@gov.mg",
+    "adress": "6, chemin Perrier, Antananarivo, Madagascar",
+    "phone": "+261 34 6705877",
+    "email_verified_at": "2025-05-22T14:26:05.767881",
+    "password": "password",
+    "remember_token": "5190cd5e75815b25aa7e68a3dc33b693c808a0b8"
+  },
+  {
+    "id": 5,
+    "name": "Cl\u00e9mence Gr\u00e9goire",
+    "email": "cl\u00e9mence.gr\u00e9goire@gov.mg",
+    "adress": "99, boulevard de Renaud, Antananarivo, Madagascar",
+    "phone": "+261 34 2459579",
+    "email_verified_at": "2025-05-22T14:26:05.767948",
+    "password": "password",
+    "remember_token": "d1328717bef2ab9fd2645d381a8387ac9f69963f"
+  },
+  {
+    "id": 6,
+    "name": "Marcel Olivier",
+    "email": "marcel.olivier@gov.mg",
+    "adress": "19, chemin Guyon, Antananarivo, Madagascar",
+    "phone": "+261 34 8403060",
+    "email_verified_at": "2025-05-22T14:26:05.768013",
+    "password": "password",
+    "remember_token": "3f8d926194b09b0262eda261566b696938e358ad"
+  },
+  {
+    "id": 7,
+    "name": "P\u00e9n\u00e9lope Blanchard",
+    "email": "p\u00e9n\u00e9lope.blanchard@gov.mg",
+    "adress": "chemin Audrey Roche, Antananarivo, Madagascar",
+    "phone": "+261 34 5141541",
+    "email_verified_at": "2025-05-22T14:26:05.768074",
+    "password": "password",
+    "remember_token": "711583b12447b5089b44e657b1b96f80e93ab694"
+  },
+  {
+    "id": 8,
+    "name": "Pauline Blanchard",
+    "email": "pauline.blanchard@gov.mg",
+    "adress": "165, chemin Chevallier, Antananarivo, Madagascar",
+    "phone": "+261 34 1818566",
+    "email_verified_at": "2025-05-22T14:26:05.768133",
+    "password": "password",
+    "remember_token": "365f7c4ab4c91199fb20bf540abd30455e859076"
+  },
+  {
+    "id": 9,
+    "name": "Andr\u00e9 Coste",
+    "email": "andr\u00e9.coste@gov.mg",
+    "adress": "907, avenue de Carpentier, Antananarivo, Madagascar",
+    "phone": "+261 34 5916429",
+    "email_verified_at": "2025-05-22T14:26:05.768187",
+    "password": "password",
+    "remember_token": "15188aa13e2134ab1d8160bdcd8b1bf6a01d73ed"
+  },
+  {
+    "id": 10,
+    "name": "Louis Vallet",
+    "email": "louis.vallet@gov.mg",
+    "adress": "1, boulevard Evrard, Antananarivo, Madagascar",
+    "phone": "+261 34 2067918",
+    "email_verified_at": "2025-05-22T14:26:05.768229",
+    "password": "password",
+    "remember_token": "6ae507deb81c30f4a6e5764875fb6d8368a83ee3"
+  },
+  {
+    "id": 11,
+    "name": "Agn\u00e8s Voisin",
+    "email": "agn\u00e8s.voisin@entreprise.fr",
+    "adress": "75, avenue Dubois, Sainte Jeannine, France",
+    "phone": "+33 6 8823425",
+    "email_verified_at": "2025-05-22T14:26:05.768534",
+    "password": "password",
+    "remember_token": "ee3fb9904322c2ca2480d6cd81f0f8a7bd9aa21e"
+  },
+  {
+    "id": 12,
+    "name": "Martine Martel",
+    "email": "martine.martel@entreprise.fr",
+    "adress": "21, avenue Couturier, Lecomte, France",
+    "phone": "+33 6 6547013",
+    "email_verified_at": "2025-05-22T14:26:05.768625",
+    "password": "password",
+    "remember_token": "a363e1d4718c19ea8291418c5ddd147f4f7f65cc"
+  },
+  {
+    "id": 13,
+    "name": "Charlotte Dufour",
+    "email": "charlotte.dufour@entreprise.fr",
+    "adress": "27, boulevard de Lagarde, Saint Alphonsedan, France",
+    "phone": "+33 6 5217072",
+    "email_verified_at": "2025-05-22T14:26:05.768686",
+    "password": "password",
+    "remember_token": "ee44b8522f6fd28c6df40a5d1400b29d434bde36"
+  },
+  {
+    "id": 14,
+    "name": "Josette Guillot",
+    "email": "josette.guillot@entreprise.fr",
+    "adress": "4, chemin Guillaume Royer, Sainte Raymond-sur-Mer, France",
+    "phone": "+33 6 5035018",
+    "email_verified_at": "2025-05-22T14:26:05.768746",
+    "password": "password",
+    "remember_token": "0158b09e52b39c09d56aea0cdc7cd9d6ce380685"
+  },
+  {
+    "id": 15,
+    "name": "Margaud Blin",
+    "email": "margaud.blin@entreprise.fr",
+    "adress": "75, avenue Lema\u00eetre, Maillet, France",
+    "phone": "+33 6 2989077",
+    "email_verified_at": "2025-05-22T14:26:05.768805",
+    "password": "password",
+    "remember_token": "159a07c0b707d0b119b41985f01f00ebeef6bc49"
+  },
+  {
+    "id": 16,
+    "name": "Sophie Brun",
+    "email": "sophie.brun@entreprise.fr",
+    "adress": "chemin Charrier, Sainte Am\u00e9lie-les-Bains, France",
+    "phone": "+33 6 9329275",
+    "email_verified_at": "2025-05-22T14:26:05.768868",
+    "password": "password",
+    "remember_token": "15efac56499ac52786b278d2972d40f552b772b0"
+  },
+  {
+    "id": 17,
+    "name": "Margaret Pires",
+    "email": "margaret.pires@entreprise.fr",
+    "adress": "chemin de Ribeiro, Fournier, France",
+    "phone": "+33 6 5946944",
+    "email_verified_at": "2025-05-22T14:26:05.769047",
+    "password": "password",
+    "remember_token": "41fef1a433d726abd53c353fc489872b7c0c4372"
+  },
+  {
+    "id": 18,
+    "name": "Yves Lamy",
+    "email": "yves.lamy@entreprise.fr",
+    "adress": "42, rue Gr\u00e9goire, Reynaud, France",
+    "phone": "+33 6 2075179",
+    "email_verified_at": "2025-05-22T14:26:05.769155",
+    "password": "password",
+    "remember_token": "706c77a3e767c5e89208a5fb799aff8cf43d1cb1"
+  },
+  {
+    "id": 19,
+    "name": "Ren\u00e9 Paul",
+    "email": "ren\u00e9.paul@entreprise.fr",
+    "adress": "5, rue de Briand, Morin, France",
+    "phone": "+33 6 5840181",
+    "email_verified_at": "2025-05-22T14:26:05.769220",
+    "password": "password",
+    "remember_token": "30e439580b8fd56a281948910696709eb74f9587"
+  },
+  {
+    "id": 20,
+    "name": "Capucine David",
+    "email": "capucine.david@entreprise.fr",
+    "adress": "744, boulevard de Fernandes, Diaz, France",
+    "phone": "+33 6 1138372",
+    "email_verified_at": "2025-05-22T14:26:05.769280",
+    "password": "password",
+    "remember_token": "3c9d083638dac7691403f3051d5a642bfa1b5ab8"
+  }
+]
