@@ -35,9 +35,9 @@ export function Sidebar({ selectedView, setSelectedView, selectedProjectId, setS
       icon: <Briefcase className="h-5 w-5" />,
       label: "Projects",
       value: "projects",
-      subItems: projects.map((project) => ({
-        label: project.name,
-        value: project.id,
+      subItems: projects.data.map((project) => ({
+        label: project.title,
+        value: project.id.toString(),
         status: project.status,
       })),
     },
@@ -130,9 +130,9 @@ export function Sidebar({ selectedView, setSelectedView, selectedProjectId, setS
                         <div
                           className={cn(
                             "h-2 w-2 rounded-full",
-                            subItem.status === "pending" && "bg-[#60a5fa]",
-                            subItem.status === "in_progress" && "bg-[#34d399]",
-                            subItem.status === "to_estimate" && "bg-[#fbbf24]",
+                            subItem.status === "pending" && "bg-[#fbbf24]",
+                            subItem.status === "active" && "bg-[#34d399]",
+                            subItem.status === "completed" && "bg-[#60a5fa]",
                             subItem.status === "rejected" && "bg-[#f87171]",
                           )}
                         />

@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\User\DashboardController;
-use App\Http\Controllers\User\ProjectController;
+use App\Http\Controllers\User\ProjectManagerController;
 
 Route::middleware(['auth', 'role:user'])->group(function () {
     Route::prefix('user')->group(function () {
@@ -11,6 +11,6 @@ Route::middleware(['auth', 'role:user'])->group(function () {
     });
 
     Route::prefix('manager')->group(function () {
-        Route::get('/project', [ProjectController::class, 'index'])->name('manager.project');
+        Route::get('/project', [ProjectManagerController::class, 'index'])->name('manager.project');
     });
 });

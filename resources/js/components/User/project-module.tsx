@@ -3,13 +3,13 @@
 import { useState } from "react"
 import { ChevronDown, ChevronUp, Plus, CheckCircle, Circle } from "lucide-react"
 import { useProjects } from "@/context/project-context"
-import { ProgressBar } from "@/components/progress-bar"
-import type { Module, Task } from "@/types"
+import { ProgressBar } from "@/components/User/progress-bar"
+import type { Module, Task, Part, TaskStatus } from "@/types"
 
 interface ProjectModuleProps {
   module: Module
   projectId: string
-  milestoneId: string
+  milestoneId: number
   index: number
 }
 
@@ -23,19 +23,23 @@ export function ProjectModule({ module, projectId, milestoneId, index }: Project
     if (!newTaskName.trim()) return
 
     const project = getProjectById(projectId)
-    if (!project || !project.milestones) return
+    if (!project || !project.parts) return
 
     const newTask: Task = {
-      id: `task-${Date.now()}`,
-      name: newTaskName,
-      completed: false,
+      id: Date.now(),
+      module_id: module.id,
+      title: newTaskName,
+      description: "",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      status: "en-cours" as TaskStatus
     }
 
-    const updatedMilestones = project.milestones.map((milestone) => {
-      if (milestone.id === milestoneId) {
+    const updatedParts = project.parts.map((part: Part) => {
+      if (part.id === milestoneId) {
         return {
-          ...milestone,
-          modules: milestone.modules?.map((m) => {
+          ...part,
+          modules: part.modules?.map((m: Module) => {
             if (m.id === module.id) {
               return {
                 ...m,
@@ -46,67 +50,81 @@ export function ProjectModule({ module, projectId, milestoneId, index }: Project
           }),
         }
       }
-      return milestone
+      return part
     })
 
-    updateProject(projectId, { milestones: updatedMilestones })
+    updateProject(projectId, { parts: updatedParts })
 
     setNewTaskName("")
     setShowAddTask(false)
   }
 
-  const toggleTaskStatus = (taskId: string) => {
+  const toggleTaskStatus = (taskId: number) => {
     const project = getProjectById(projectId)
-    if (!project || !project.milestones) return
+    if (!project || !project.parts) return
 
-    const updatedMilestones = project.milestones.map((milestone) => {
-      if (milestone.id === milestoneId) {
+    const updatedParts = project.parts.map((part: Part) => {
+      if (part.id === milestoneId) {
         return {
-          ...milestone,
-          modules: milestone.modules?.map((m) => {
+          ...part,
+          modules: part.modules?.map((m: Module) => {
             if (m.id === module.id) {
-              const updatedTasks = m.tasks?.map((task) => {
+              const updatedTasks = m.tasks?.map((task: Task) => {
                 if (task.id === taskId) {
-                  return { ...task, completed: !task.completed }
+                  const newStatus: TaskStatus = task.status === "achevé" ? "en-cours" : "achevé"
+                  return {
+                    ...task,
+                    status: newStatus
+                  }
                 }
                 return task
               })
 
               // Calculate new progress
-              const completedTasks = updatedTasks?.filter((t) => t.completed).length || 0
+              const completedTasks = updatedTasks?.filter((t: Task) => t.status === "achevé").length || 0
               const totalTasks = updatedTasks?.length || 0
               const progress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
 
               return {
                 ...m,
-                tasks: updatedTasks,
-                progress,
+                tasks: updatedTasks
               }
             }
             return m
           }),
         }
       }
-      return milestone
+      return part
     })
 
-    // Update milestone progress based on modules
-    const updatedMilestonesWithProgress = updatedMilestones.map((milestone) => {
-      if (milestone.id === milestoneId) {
-        const totalModules = milestone.modules?.length || 0
-        const moduleProgressSum = milestone.modules?.reduce((sum, m) => sum + m.progress, 0) || 0
-        const milestoneProgress = totalModules > 0 ? Math.round(moduleProgressSum / totalModules) : 0
+    // Update part progress based on modules
+    const updatedPartsWithProgress = updatedParts.map((part: Part) => {
+      if (part.id === milestoneId) {
+        const totalModules = part.modules?.length || 0
+        const moduleProgressSum = part.modules?.reduce((sum: number, m: Module) => {
+          const completedTasks = m.tasks?.filter(t => t.status === "achevé").length || 0
+          const totalTasks = m.tasks?.length || 0
+          const moduleProgress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+          return sum + moduleProgress
+        }, 0) || 0
+        const partProgress = totalModules > 0 ? Math.round(moduleProgressSum / totalModules) : 0
 
         return {
-          ...milestone,
-          progress: milestoneProgress,
+          ...part,
+          progress: partProgress,
         }
       }
-      return milestone
+      return part
     })
 
-    updateProject(projectId, { milestones: updatedMilestonesWithProgress })
+    updateProject(projectId, { parts: updatedPartsWithProgress })
   }
+
+  const moduleProgress = (() => {
+    const completedTasks = module.tasks?.filter(t => t.status === "achevé").length || 0
+    const totalTasks = module.tasks?.length || 0
+    return totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+  })()
 
   return (
     <div className="bg-slate-700 rounded-lg border border-slate-600 overflow-hidden">
@@ -115,12 +133,12 @@ export function ProjectModule({ module, projectId, milestoneId, index }: Project
           <div className="flex items-center justify-center h-6 w-6 rounded-full bg-slate-600 text-white text-sm font-medium">
             {index + 1}
           </div>
-          <h5 className="font-medium">{module.name}</h5>
+          <h5 className="font-medium">{module.title}</h5>
         </div>
 
         <div className="flex items-center gap-2">
-          <ProgressBar value={module.progress} className="w-24 h-1.5" />
-          <span className="text-xs text-slate-400">{module.progress}%</span>
+          <ProgressBar value={moduleProgress} className="w-24 h-1.5" />
+          <span className="text-xs text-slate-400">{moduleProgress}%</span>
           {isExpanded ? (
             <ChevronUp className="h-4 w-4 text-slate-400" />
           ) : (
@@ -134,7 +152,7 @@ export function ProjectModule({ module, projectId, milestoneId, index }: Project
           <div className="space-y-3">
             {module.tasks && module.tasks.length > 0 ? (
               <div className="space-y-2 pt-2">
-                {module.tasks.map((task) => (
+                {module.tasks.map((task: Task) => (
                   <div
                     key={task.id}
                     className="flex items-center gap-2 p-2 rounded-md hover:bg-slate-600 transition-colors"
@@ -146,14 +164,14 @@ export function ProjectModule({ module, projectId, milestoneId, index }: Project
                       }}
                       className="flex-shrink-0"
                     >
-                      {task.completed ? (
+                      {task.status === "achevé" ? (
                         <CheckCircle className="h-5 w-5 text-[#34d399]" />
                       ) : (
                         <Circle className="h-5 w-5 text-slate-400" />
                       )}
                     </button>
-                    <span className={`text-sm ${task.completed ? "line-through text-slate-400" : ""}`}>
-                      {task.name}
+                    <span className={`text-sm ${task.status === "achevé" ? "line-through text-slate-400" : ""}`}>
+                      {task.title}
                     </span>
                   </div>
                 ))}

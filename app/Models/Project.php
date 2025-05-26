@@ -4,7 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Project extends Model
 {
@@ -14,15 +15,18 @@ class Project extends Model
     protected $connection = 'pgsql';
 
     protected $fillable = [
-        'id',
         'title',
         'description',
         'status',
         'budget',
-        'admin_id',
-        'manager_id',
         'start_date',
         'end_date',
+    ];
+
+    protected $casts = [
+        'budget' => 'float',
+        'start_date' => 'date',
+        'end_date' => 'date'
     ];
 
     public function admin()
@@ -35,14 +39,40 @@ class Project extends Model
         return $this->belongsTo(User::class, 'manager_id');
     }
 
+    public function parts()
+    {
+        return $this->hasMany(Part::class);
+    }
 
     public function devs()
     {
-        return $this->belongsToMany(User::class, 'dev_project', 'project_id', 'dev_id');
+        return $this->belongsToMany(User::class, 'project_users', 'project_id', 'user_id');
     }
 
     public function proposals()
     {
         return $this->hasMany(ProjectProposal::class);
+    }
+
+    // Helper methods pour obtenir toutes les tâches du projet
+    public function getAllTasks()
+    {
+        return Task::whereIn('module_id', 
+            Module::whereIn('part_id', 
+                $this->parts()->pluck('id')
+            )->pluck('id')
+        )->get();
+    }
+
+    // Helper method pour obtenir tous les développeurs assignés
+    public function getAssignedUsers()
+    {
+        return User::whereIn('id', 
+            ModuleUser::whereIn('module_id', 
+                Module::whereIn('part_id', 
+                    $this->parts()->pluck('id')
+                )->pluck('id')
+            )->pluck('user_id')
+        )->distinct()->get();
     }
 }

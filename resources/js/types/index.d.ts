@@ -131,25 +131,33 @@ export interface TaskDeliverable {
 }
 
 export interface Task {
-    id: string
+    id: number
     name: string
     description: string
     status: "inactive" | "en-cours" | "attente-validation" | "achevé" | "validé"
-    assignedTo?: User
+    module_id: number
+    assignee_id: number | null
+    estimated_hours: number
+    amount: number
     deliverables: TaskDeliverable[]
     comments: TaskComment[]
-    estimatedHours: number
-    amount: number
+    assignedTo?: User
+}
+
+export interface NewTask extends Omit<Task, 'id'> {
+    id?: number
 }
 
 export interface Module {
-    id: string
+    id: number
     title: string
     description: string
-    completed: boolean
     xp_rewards: number
+    project_id: number
+    duration_hours: number
     status?: "locked" | "unlocked" | "completed"
     tasks: Task[]
+    completed: boolean
     unlockedBy?: User
 }
 
@@ -198,17 +206,18 @@ export interface Goal {
 }
 
 export interface Project {
-    id: string
+    id: number
     title: string
     status: "pending" | "active" | "completed" | "rejected"
     progress: number
     description: string
+    admin_id: number
+    manager_id: number
+    start_date: string | null
+    end_date: string | null
     modules: Module[]
-    projectManager: ProjectManager
-    start_date: string
-    end_date: string
     proposals: ProjectProposal[]
-    budget: number | ''
+    budget: number | null
     devs: User[]
     parts: Part[]
 }
@@ -238,9 +247,4 @@ export interface Part {
     name: string
     progress: number
     modules: Module[]
-  }
-
-  export interface Dev {
-    name: string
-    role: string
   }

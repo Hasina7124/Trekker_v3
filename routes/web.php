@@ -4,6 +4,7 @@ use App\Http\Controllers\ProjectObjectiveController;
 use App\Http\Controllers\ProjectProposalController;
 use App\Http\Controllers\WalletController;
 use App\Http\Controllers\test;
+use App\Http\Controllers\User\ProjectManagerController;
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -54,6 +55,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::get('/', [ProjectProposalController::class, 'index'])->name('projects.proposals.index');
             Route::post('/', [ProjectProposalController::class, 'store'])->name('projects.proposals.store');
         });
+    });
+
+    // Routes pour le chef de projet
+    Route::prefix('manager')->group(function () {
+        Route::get('/dashboard', [ProjectManagerController::class, 'dashboard'])->name('manager.dashboard');
+        Route::get('/projects/stats', [ProjectManagerController::class, 'getProjectStats'])->name('manager.projects.stats');
+        Route::post('/tasks/status', [ProjectManagerController::class, 'updateTaskStatus'])->name('manager.tasks.status');
+        Route::patch('/projects/{project}/progress', [ProjectManagerController::class, 'updateProjectProgress'])->name('manager.projects.progress');
     });
 
     Route::get('/test', [test::class, 'index']);
