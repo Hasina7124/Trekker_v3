@@ -32,7 +32,11 @@ export function ProjectModule({ module, projectId, milestoneId, index }: Project
       description: "",
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      status: "en-cours" as TaskStatus
+      status: "en-cours" as TaskStatus,
+      deliverables: [],
+      comments: [],
+      estimatedHours: 0,
+      amount: 0
     }
 
     const updatedParts = project.parts.map((part: Part) => {

@@ -13,6 +13,8 @@ import { Link, usePage } from '@inertiajs/react';
 import { ArrowLeft, Calendar, Check, Clock, DollarSign, Edit, Plus, Trash, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 // Types
 type Proposal = {
@@ -68,7 +70,9 @@ interface TabsProps {
 }
 
 export default function ProjectDetailPage() {
-    const { project: currentProject, proposals: initialProposals } = usePage<PageProps<ProjectDetailPageProps>>().props;
+    const page = usePage<PageProps<ProjectDetailPageProps>>();
+    const currentProject = page.props.project as Project;
+    const initialProposals = page.props.proposals;
     const projectId = currentProject.id;
 
     // State management
@@ -109,9 +113,9 @@ export default function ProjectDetailPage() {
     useEffect(() => {
         if (initialProposals?.data) {
             // Séparer les propositions par type
-            const goalProposals = initialProposals.data.filter((p) => p.type === 'goal');
-            const timeProposals = initialProposals.data.filter((p) => ['start_date', 'end_date'].includes(p.type));
-            const budgetProposals = initialProposals.data.filter((p) => p.type === 'budget');
+            const goalProposals = initialProposals.data.filter((p: Proposal) => p.type === 'goal');
+            const timeProposals = initialProposals.data.filter((p: Proposal) => ['start_date', 'end_date'].includes(p.type));
+            const budgetProposals = initialProposals.data.filter((p: Proposal) => p.type === 'budget');
 
             // Mettre à jour l'état
             setProposals({
@@ -120,13 +124,13 @@ export default function ProjectDetailPage() {
                 budget: budgetProposals
             });
 
-            console.log('Initial proposals loaded:', {
-                goals: goalProposals,
-                time: timeProposals,
+            console.log('Propositions chargées:', {
+                objectifs: goalProposals,
+                temps: timeProposals,
                 budget: budgetProposals
             });
         }
-    }, []);  // Ne dépend plus de initialProposals pour éviter les re-renders
+    }, [initialProposals]);  // Dépendre de initialProposals pour recharger si les données changent
 
     // Séparer les propositions de temps par type
     const startDateProposals = proposals.time.filter(p => p.type === 'start_date');
@@ -178,13 +182,9 @@ export default function ProjectDetailPage() {
 
     // Format date for display
     const formatDate = (dateString: string) => {
-        if (!dateString) return 'Not set';
+        if (!dateString) return 'Non définie';
         const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-        });
+        return format(date, "EEEE dd MMMM yyyy", { locale: fr }).replace(/^\w/, c => c.toUpperCase());
     };
 
     // Handle budget input change
@@ -220,7 +220,10 @@ export default function ProjectDetailPage() {
     // Fetch proposals function
     const fetchProposals = async (type?: 'goal' | 'time' | 'budget') => {
         try {
-            const response = await fetch(`/api/projects/${currentProject.id}/proposals${type ? `?proposal_type=${type}` : ''}`, {
+            const apiUrl = `/api/projects/${currentProject.id}/proposals${type ? `/${type}` : ''}`;
+            console.log('Fetching proposals from:', apiUrl);
+            
+            const response = await fetch(apiUrl, {
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
@@ -234,18 +237,28 @@ export default function ProjectDetailPage() {
 
             const data = await response.json();
             
+            // Filtrer les données en fonction du type
+            const filteredData = type ? data.data.filter((p: Proposal) => {
+                if (type === 'time') {
+                    return ['start_date', 'end_date'].includes(p.type);
+                }
+                return p.type === type;
+            }) : data.data;
+            
             // Mettre à jour l'état en fonction du type
             setProposals(prev => ({
                 ...prev,
-                [type || 'goal']: data.data
+                [type || 'goal']: filteredData
             }));
 
-            console.log('Fetched proposals:', {
+            console.log('Propositions récupérées:', {
                 type,
-                data: data.data
+                données: filteredData,
+                url: apiUrl
             });
         } catch (error: any) {
-            toast.error(error.message || 'Failed to fetch proposals');
+            console.error('Erreur lors de la récupération des propositions:', error);
+            toast.error(error.message || 'Échec de la récupération des propositions');
         }
     };
 
@@ -286,19 +299,16 @@ export default function ProjectDetailPage() {
     // Handle updating proposal status
     const updateProposalStatus = async (id: string, status: 'accepted' | 'rejected' | 'pending') => {
         try {
-            let endpoint;
-            if (status === 'pending') {
-                endpoint = 'pending';
-            } else {
-                endpoint = status === 'accepted' ? 'accept' : 'reject';
-            }
+            const apiUrl = `/api/projects/proposals/${id}/status`;
+            console.log('Updating proposal status:', { apiUrl, status });
 
-            const response = await fetch(`/api/project-proposals/${id}/${endpoint}`, {
+            const response = await fetch(apiUrl, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                 },
+                body: JSON.stringify({ status })
             });
 
             if (!response.ok) {
@@ -348,14 +358,18 @@ export default function ProjectDetailPage() {
             };
             toast.success(`Proposition ${statusMessages[status]} avec succès`);
         } catch (error: any) {
-            toast.error(error.message || 'Failed to update proposal');
+            console.error('Erreur lors de la mise à jour du statut:', error);
+            toast.error(error.message || 'Échec de la mise à jour du statut');
         }
     };
 
     // Handle deleting a proposal
     const deleteProposal = async (id: string) => {
         try {
-            const response = await fetch(`/api/project-proposals/${id}`, {
+            const apiUrl = `/api/projects/proposals/${id}`;
+            console.log('Deleting proposal:', { apiUrl });
+
+            const response = await fetch(apiUrl, {
                 method: 'DELETE',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
@@ -376,14 +390,18 @@ export default function ProjectDetailPage() {
 
             toast.success('Proposal deleted successfully');
         } catch (error: any) {
-            toast.error(error.message || 'Failed to delete proposal');
+            console.error('Erreur lors de la suppression:', error);
+            toast.error(error.message || 'Échec de la suppression');
         }
     };
 
     // Handle editing a proposal
     const editProposal = async (id: string, value: string, type: string) => {
         try {
-            const response = await fetch(`/api/project-proposals/${id}`, {
+            const apiUrl = `/api/projects/proposals/${id}`;
+            console.log('Editing proposal:', { apiUrl, value, type });
+
+            const response = await fetch(apiUrl, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -407,7 +425,8 @@ export default function ProjectDetailPage() {
             toast.success('Proposal updated successfully');
             setEditObjectiveOpen(false);
         } catch (error: any) {
-            toast.error(error.message || 'Failed to update proposal');
+            console.error('Erreur lors de la modification:', error);
+            toast.error(error.message || 'Échec de la modification');
         }
     };
 
@@ -751,16 +770,17 @@ export default function ProjectDetailPage() {
                             <Card className="border-slate-700 bg-slate-900">
                                 <CardHeader>
                                     <CardTitle>Project Objectives</CardTitle>
-                                    <CardDescription className="text-slate-400">
-                                        Manage the key objectives and deliverables for this project
-                                    </CardDescription>
+                                    <CardDescription className="text-slate-400">Define and track project goals</CardDescription>
                                 </CardHeader>
-                                <CardContent className="space-y-4">
-                                    {/* Objectives list */}
-                                    <div className="space-y-3">
+                                <CardContent>
+                                    <div className="space-y-4">
+                                        {/* Liste des objectifs */}
                                         {proposals.goal.length > 0 ? (
                                             proposals.goal.map((objective) => (
-                                                <div key={objective.id} className="flex items-center justify-between rounded-md bg-slate-800 p-3">
+                                                <div
+                                                    key={objective.id}
+                                                    className="flex items-center justify-between rounded-md border border-slate-700 bg-slate-800 p-3"
+                                                >
                                                     <div className="flex items-center gap-3">
                                                         {renderStatusIcon(objective.status as ProposalStatus)}
                                                         <span className="text-slate-200">{objective.value}</span>

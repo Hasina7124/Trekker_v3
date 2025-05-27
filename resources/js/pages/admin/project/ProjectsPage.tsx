@@ -1,5 +1,5 @@
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -10,58 +10,89 @@ import ProjectLayout from "@/layouts/admin/project/layout"
 import type { Project } from "@/types"
 import Pagination from "@/components/Pagination"
 import { ProjectCard } from "@/components/Admin/project/project-card"
+import axios from "axios"
 
 type PageProps = {
-  projects: {
+  projects?: {
     data: Project[]
     links: any[]
   }
-  filters: {
+  filters?: {
     status: string
     search: string
   }
-  status: string
+  status?: string[]
 }
 
-export default function ProjectsPage({ projects, filters, status }: PageProps) {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [activeTab, setActiveTab] = useState("all")
+export default function ProjectsPage({ projects: initialProjects, filters: initialFilters, status: initialStatus }: PageProps) {
+  const [searchQuery, setSearchQuery] = useState(initialFilters?.search || "")
+  const [activeTab, setActiveTab] = useState(initialFilters?.status || "all")
   const [isLoading, setIsLoading] = useState(false)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [projects, setProjects] = useState(initialProjects)
+  const [filters, setFilters] = useState(initialFilters)
+  const [status, setStatus] = useState(initialStatus)
+
+  // Fonction pour mettre à jour un projet dans la liste
+  const updateProject = (updatedProject: Project) => {
+    if (projects) {
+      const updatedProjects = {
+        ...projects,
+        data: projects.data.map(project => 
+          project.id === updatedProject.id ? updatedProject : project
+        )
+      }
+      setProjects(updatedProjects)
+    }
+  }
+
+  // Fonction pour supprimer un projet de la liste
+  const removeProject = (projectId: string | number) => {
+    if (projects) {
+      const updatedProjects = {
+        ...projects,
+        data: projects.data.filter(project => project.id !== projectId)
+      }
+      setProjects(updatedProjects)
+    }
+  }
+
+  // Charger les données
+  const loadProjects = async (params: { search?: string; status?: string }) => {
+    try {
+      setIsLoading(true)
+      const response = await axios.get("/api/projects", { params })
+      setProjects(response.data.projects)
+      setFilters(response.data.filters)
+      setStatus(response.data.status)
+    } catch (error) {
+      console.error("Erreur lors du chargement des projets:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   // Pour la recherche
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
-    router.get(
-      route("project.index"),
-      {
-        search: searchQuery,
-        status: activeTab,
-      },
-      {
-        preserveState: true,
-        replace: true,
-        only: ["projects"],
-        onStart: () => setIsLoading(true),
-        onFinish: () => setIsLoading(false),
-      },
-    )
+    await loadProjects({ search: searchQuery, status: activeTab })
   }
 
   // Pour determiner quelle type de tabe est active
-  const handleTabChange = (value: string) => {
+  const handleTabChange = async (value: string) => {
     setActiveTab(value)
-    router.get(
-      route("project.index"),
-      {
-        status: value,
-      },
-      {
-        preserveState: true,
-        replace: true,
-        only: ["projects"],
-      },
-    )
+    await loadProjects({ status: value, search: searchQuery })
+  }
+
+  // Charger les données initiales si elles ne sont pas fournies
+  useEffect(() => {
+    if (!initialProjects) {
+      loadProjects({ status: activeTab, search: searchQuery })
+    }
+  }, [])
+
+  if (!projects) {
+    return <div>Chargement...</div>
   }
 
   return (
@@ -106,11 +137,15 @@ export default function ProjectsPage({ projects, filters, status }: PageProps) {
               {projects.data
                 .filter((p) => activeTab === "all" || p.status === activeTab)
                 .map((project) => (
-                  <ProjectCard key={project.id} project={project} />
+                  <ProjectCard 
+                    key={project.id} 
+                    project={project}
+                    onUpdate={updateProject}
+                    onDelete={removeProject}
+                  />
                 ))}
             </div>
           </TabsContent>
-
         </Tabs>
 
         <Pagination project={projects} />

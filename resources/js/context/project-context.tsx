@@ -84,7 +84,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const getProjectById = (id: string) => {
+    const getProjectById = (id: string) => {
     return projects.data.find((p) => p.id.toString() === id)
   }
 
@@ -135,30 +135,30 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  return (
-    <ProjectContext.Provider
-      value={{
-        projects,
+    return (
+        <ProjectContext.Provider
+            value={{
+                projects,
         loading,
         error,
-        user: userData,
-        getProjectById,
-        updateProject,
+                user: userData,
+                getProjectById,
+                updateProject,
         createProject,
         deleteProject,
         getManagerProjects,
         loadProjects,
-      }}
-    >
-      {children}
-    </ProjectContext.Provider>
+            }}
+        >
+            {children}
+        </ProjectContext.Provider>
   )
 }
 
 export function useProjects() {
   const context = useContext(ProjectContext)
-  if (context === undefined) {
+    if (context === undefined) {
     throw new Error("useProjects must be used within a ProjectProvider")
-  }
+    }
   return context
 }

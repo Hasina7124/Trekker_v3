@@ -1,6 +1,6 @@
 "use client"
 
-import type { Module } from "@/types/project"
+import type { Module } from "@/types"
 import { cn } from "@/lib/utils"
 import { Lock, CheckCircle, Star, Unlock } from "lucide-react"
 import { motion } from "framer-motion"
@@ -10,10 +10,9 @@ interface ModuleCardProps {
   module: Module
   status: "locked" | "unlocked" | "completed"
   onClick: () => void
-  isTeamLead: boolean
 }
 
-export function ModuleCard({ module, status, onClick, isTeamLead }: ModuleCardProps) {
+export function ModuleCard({ module, status, onClick }: ModuleCardProps) {
   // Styles conditionnels basés sur le statut
   const cardStyles = cn(
     "relative overflow-hidden rounded-xl border p-4 transition-all duration-300",
@@ -39,11 +38,9 @@ export function ModuleCard({ module, status, onClick, isTeamLead }: ModuleCardPr
     iconColor = "text-slate-400"
   }
 
-  // Texte du bouton basé sur le statut et le rôle
+  // Texte du bouton basé sur le statut
   let buttonText = "Voir les détails"
-  if (status === "locked" && isTeamLead) {
-    buttonText = "Déverrouiller"
-  } else if (status === "unlocked") {
+  if (status === "unlocked") {
     buttonText = "Voir les tâches"
   } else if (status === "completed") {
     buttonText = "Voir le récapitulatif"
@@ -84,10 +81,10 @@ export function ModuleCard({ module, status, onClick, isTeamLead }: ModuleCardPr
 
       <div className="flex items-start justify-between">
         <div className="flex-1">
-          <h3 className="font-semibold text-white">{module.name}</h3>
+          <h3 className="font-semibold text-white">{module.title}</h3>
           <div className="mt-2 flex items-center gap-1">
             <Star className="h-3.5 w-3.5 text-amber-500" />
-            <span className="text-xs font-medium text-amber-500">{module.xp} XP</span>
+            <span className="text-xs font-medium text-amber-500">{module.xp_rewards} XP</span>
           </div>
         </div>
         <div
@@ -131,19 +128,17 @@ export function ModuleCard({ module, status, onClick, isTeamLead }: ModuleCardPr
               ? "bg-emerald-500 hover:bg-emerald-600"
               : status === "unlocked"
                 ? "bg-amber-500 hover:bg-amber-600"
-                : isTeamLead
-                  ? "bg-slate-600 hover:bg-slate-700"
-                  : "bg-slate-700 opacity-50 cursor-not-allowed hover:bg-slate-700",
+                : "bg-slate-700 opacity-50 cursor-not-allowed hover:bg-slate-700"
           )}
-          disabled={status === "locked" && !isTeamLead}
+          disabled={status === "locked"}
         >
           {buttonText}
         </Button>
       </div>
 
       {/* Indication du déverrouillage */}
-      {status === "unlocked" && module.unlockedBy && (
-        <div className="mt-2 text-xs text-slate-400 text-center">Déverrouillé par {module.unlockedBy.name}</div>
+      {status === "unlocked" && (
+        <div className="mt-2 text-xs text-slate-400 text-center">Module déverrouillé</div>
       )}
     </motion.div>
   )

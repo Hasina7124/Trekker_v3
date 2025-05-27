@@ -59,11 +59,11 @@ export function ProjectMilestone({ milestone, projectId, index, isLocked }: Proj
     <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
       <div className="p-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3">
             <div className="h-8 w-8 rounded-full bg-slate-700 flex items-center justify-center">
               <span className="font-medium">{index + 1}</span>
-            </div>
-            <div>
+          </div>
+          <div>
               <h4 className="font-medium">{milestone.title}</h4>
               <p className="text-sm text-slate-400">{milestone.description}</p>
             </div>

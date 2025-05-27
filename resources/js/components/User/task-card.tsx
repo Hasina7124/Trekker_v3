@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import type { Task, User } from "@/types/project"
+import type { Task, User, TaskStatus, TaskDeliverable, TaskComment } from "@/types"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import {
@@ -26,10 +27,9 @@ import { fr } from "date-fns/locale"
 interface TaskCardProps {
   task: Task
   currentUser: User
-  isTeamLead: boolean
   isProjectManager: boolean
   onAssign: () => void
-  onStatusChange: (status: "inactive" | "en-cours" | "attente-validation" | "achevé" | "validé") => void
+  onStatusChange: (status: TaskStatus) => void
   selected: boolean
   onSelect: () => void
   onAddComment: (comment: string) => void
@@ -40,7 +40,6 @@ interface TaskCardProps {
 export function TaskCard({
   task,
   currentUser,
-  isTeamLead,
   isProjectManager,
   onAssign,
   onStatusChange,
@@ -52,6 +51,9 @@ export function TaskCard({
 }: TaskCardProps) {
   const [expanded, setExpanded] = useState(false)
 
+  // Déterminer si l'utilisateur peut valider la tâche
+  const canValidateTask = task.status === "achevé" && isProjectManager
+
   // Vérifier si la tâche est assignée à l'utilisateur actuel
   const isAssignedToCurrentUser = task.assignedTo?.id === currentUser.id
 
@@ -60,12 +62,6 @@ export function TaskCard({
 
   // Vérifier si l'utilisateur peut soumettre la tâche pour validation
   const canSubmitForValidation = task.status === "en-cours" && isAssignedToCurrentUser
-
-  // Vérifier si le chef de projet peut valider la tâche
-  const canApproveTask = task.status === "attente-validation" && isProjectManager
-
-  // Vérifier si le chef d'équipe peut valider la tâche finale
-  const canValidateTask = task.status === "achevé" && isTeamLead
 
   // Obtenir l'icône de statut
   const getStatusIcon = () => {
@@ -209,18 +205,6 @@ export function TaskCard({
                 </Button>
               )}
 
-              {canApproveTask && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="bg-amber-500/20 text-amber-500 border-amber-500/30 hover:bg-amber-500/30"
-                  onClick={() => onStatusChange("achevé")}
-                >
-                  <Check className="mr-1 h-3.5 w-3.5" />
-                  Approuver
-                </Button>
-              )}
-
               {canValidateTask && (
                 <Button
                   size="sm"
@@ -236,12 +220,6 @@ export function TaskCard({
               {task.status === "attente-validation" && !isProjectManager && (
                 <div className="text-xs text-purple-400 flex items-center">
                   En attente de validation par le chef de projet
-                </div>
-              )}
-
-              {task.status === "achevé" && !isTeamLead && (
-                <div className="text-xs text-amber-400 flex items-center">
-                  En attente de validation finale par le chef d'équipe
                 </div>
               )}
             </div>

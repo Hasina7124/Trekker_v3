@@ -11,33 +11,33 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { router } from "@inertiajs/react"
 import type { Project } from "@/types"
-import { route } from "ziggy-js" // Import route from ziggy-js
+import axios from "axios"
+import { toast } from "sonner"
 
-export function ProjectDeleteDialog({
-  project,
-  open,
-  onOpenChange,
-}: {
+type ProjectDeleteDialogProps = {
   project: Project
   open: boolean
   onOpenChange: (open: boolean) => void
-}) {
+  onDelete: (projectId: string | number) => void
+}
+
+export function ProjectDeleteDialog({ project, open, onOpenChange, onDelete }: ProjectDeleteDialogProps) {
   const [isDeleting, setIsDeleting] = useState(false)
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     setIsDeleting(true)
 
-    router.delete(route("project.destroy", project.id), {
-      onSuccess: () => {
-        onOpenChange(false)
-        setIsDeleting(false)
-      },
-      onError: () => {
-        setIsDeleting(false)
-      },
-    })
+    try {
+      await axios.delete(`/api/projects/${project.id}`)
+      toast.success("Projet supprimé avec succès")
+      onDelete(project.id)
+      onOpenChange(false)
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Erreur lors de la suppression du projet")
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   return (

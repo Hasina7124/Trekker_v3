@@ -12,9 +12,26 @@ export interface Module {
     created_at: string;
     updated_at: string;
     tasks?: Task[];
+    completed: boolean;
+    status?: "locked" | "unlocked" | "completed";
 }
 
 export type TaskStatus = "en-cours" | "achevé";
+
+export interface TaskDeliverable {
+    type: "github" | "screenshot" | "document" | "other";
+    url: string;
+    description?: string;
+    timestamp: string;
+}
+
+export interface TaskComment {
+    id: string;
+    userId: string;
+    userName: string;
+    content: string;
+    timestamp: string;
+}
 
 export interface Task {
     id: number;
@@ -24,6 +41,11 @@ export interface Task {
     created_at: string;
     updated_at: string;
     status: TaskStatus;
+    assignedTo?: User;
+    deliverables: TaskDeliverable[];
+    comments: TaskComment[];
+    estimatedHours: number;
+    amount: number;
 }
 
 export interface Part {
@@ -62,9 +84,15 @@ export interface Project {
     end_date: string;
     created_at: string;
     updated_at: string;
-    project_users?: ProjectUser[];  // La relation many-to-many avec les utilisateurs
-    parts?: Part[]; // Les milestones du projet
-    team?: User[];  // Pour l'affichage dans la carte de projet
+    progress: number;
+    modules: Module[];
+    projectManager: {
+        name: string;
+        email: string;
+    };
+    project_users?: ProjectUser[];
+    parts?: Part[];
+    Devs?: User[];
 }
 
 export interface PaginatedResponse<T> {
@@ -85,4 +113,14 @@ export interface PaginatedResponse<T> {
     prev_page_url: string | null;
     to: number;
     total: number;
+}
+
+export interface PageProps<CustomProps = Record<string, unknown>> {
+    props: CustomProps;
+    url: string;
+    version: string | null;
+    scrollRegions: Array<{ top: number; left: number }>;
+    rememberedState: Record<string, any>;
+    errors: Record<string, string>;
+    [key: string]: any;
 } 

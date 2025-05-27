@@ -22,18 +22,17 @@ import { fr } from "date-fns/locale"
 import type { Project } from "@/types"
 import { router } from "@inertiajs/react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { route } from "ziggy-js"
-import {toast} from "sonner" 
+import axios from "axios"
+import { toast } from "sonner"
 
-export function ProjectEditDialog({
-  project,
-  open,
-  onOpenChange,
-}: {
+type ProjectEditDialogProps = {
   project: Project
   open: boolean
   onOpenChange: (open: boolean) => void
-}) {
+  onUpdate: (project: Project) => void
+}
+
+export function ProjectEditDialog({ project, open, onOpenChange, onUpdate }: ProjectEditDialogProps) {
   const [formData, setFormData] = useState({
     title: project.title,
     description: project.description,
@@ -41,10 +40,19 @@ export function ProjectEditDialog({
     end_date: project.end_date,
     status: project.status,
   })
+
+  const parseDate = (dateStr: string | null) => {
+    if (!dateStr) return undefined;
+    const [day, month, year] = dateStr.split('/');
+    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+  };
+
   const [startDate, setStartDate] = useState<Date | undefined>(
-    project.start_date ? new Date(project.start_date) : undefined,
+    project.start_date ? parseDate(project.start_date) : undefined,
   )
-  const [endDate, setEndDate] = useState<Date | undefined>(project.end_date ? new Date(project.end_date) : undefined)
+  const [endDate, setEndDate] = useState<Date | undefined>(
+    project.end_date ? parseDate(project.end_date) : undefined
+  )
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -71,19 +79,20 @@ export function ProjectEditDialog({
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
 
-    router.put(route("project.update", project.id), formData, {
-      onSuccess: () => {
-        onOpenChange(false)
-        setIsSubmitting(false)
-      },
-      onError: (error) => {
-        setIsSubmitting(false)
-      },
-    })
+    try {
+      const response = await axios.put(`/api/projects/${project.id}`, formData)
+      toast.success("Projet mis à jour avec succès")
+      onUpdate(response.data.project)
+      onOpenChange(false)
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Erreur lors de la mise à jour du projet")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -123,7 +132,7 @@ export function ProjectEditDialog({
                   disabled
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {endDate ? format(endDate, "dd MMMM yyyy", { locale: fr }) : "Sélectionner"}
+                  {endDate ? format(endDate, "EEEE dd MMMM yyyy", { locale: fr }).replace(/^\w/, c => c.toUpperCase()) : "Sélectionner"}
                 </Button>
               </div>
             </div>

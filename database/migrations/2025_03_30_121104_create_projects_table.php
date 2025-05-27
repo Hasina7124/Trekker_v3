@@ -16,12 +16,14 @@ return new class extends Migration
     {
         Schema::create('projects', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('id_admin')->constrained('users');
-            $table->json('id_users')->nullable();
+            $table->foreignId('admin_id')->constrained('users');
+            $table->foreignId('manager_id')->nullable()->constrained('users');
             $table->string('title');
-            $table->string('description');
-            $table->boolean('is_finished');
-            $table->decimal('budget', total:8, places:2 );
+            $table->text('description');
+            $table->enum('status', ['pending', 'active', 'completed', 'rejected'])->default('pending');
+            $table->decimal('budget', 8, 2)->nullable();
+            $table->date('start_date')->nullable();
+            $table->date('end_date')->nullable();
             $table->timestamps();
         });
     }
