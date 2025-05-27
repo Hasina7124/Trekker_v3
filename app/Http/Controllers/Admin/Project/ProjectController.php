@@ -7,6 +7,8 @@ use App\Models\Project;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Api\ApiAdminProjectController;
+use Exception;
+use Illuminate\Validation\ValidationException;
 
 class ProjectController extends Controller
 {
@@ -59,5 +61,29 @@ class ProjectController extends Controller
         return Inertia::render('admin/project/EditProjectPage', [
             'project' => $project
         ]);
+    }
+
+    /**
+     * Créer un nouveau projet
+     */
+    public function store(Request $request)
+    {
+        try {
+            $response = $this->apiController->store($request);
+            $data = json_decode($response->getContent(), true);
+
+            return redirect()->route('project.index')
+                ->with('success', $data['message']);
+
+        } catch (ValidationException $e) {
+            return redirect()->back()
+                ->withErrors($e->errors())
+                ->withInput();
+
+        } catch (Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Une erreur est survenue lors de la création du projet.')
+                ->withInput();
+        }
     }
 }

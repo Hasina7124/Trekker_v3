@@ -21,6 +21,8 @@ class Project extends Model
         'budget',
         'start_date',
         'end_date',
+        'admin_id',
+        'manager_id',
     ];
 
     protected $casts = [
