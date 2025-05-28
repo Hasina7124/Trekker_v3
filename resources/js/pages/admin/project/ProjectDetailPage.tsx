@@ -16,7 +16,6 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
-// Types
 type Proposal = {
     id: string;
     value: string | number;
@@ -55,6 +54,24 @@ type ProjectDetailPageProps = {
 type TabsValue = 'objectives' | 'constraints' | 'members';
 type SubTabValue = 'time' | 'budget';
 
+type AcceptedProposal = {
+    id: string;
+    value: string | number;
+    type: string;
+    status: string;
+    project_id: string;
+    proposer_id: string;
+    validator_id?: string;
+    validated_at?: string;
+};
+
+type AcceptedProposalsState = {
+    goals: AcceptedProposal[];
+    startDates: AcceptedProposal[];
+    endDates: AcceptedProposal[];
+    budgets: AcceptedProposal[];
+} | null;
+
 const statusColors = {
     active: 'bg-emerald-500',
     completed: 'bg-blue-500',
@@ -62,20 +79,11 @@ const statusColors = {
     canceled: 'bg-rose-500',
 };
 
-interface TabsProps {
-    value: TabsValue | SubTabValue;
-    onValueChange: (value: TabsValue | SubTabValue) => void;
-    children: React.ReactNode;
-    className?: string;
-}
-
 export default function ProjectDetailPage() {
     const page = usePage<PageProps<ProjectDetailPageProps>>();
-    const currentProject = page.props.project as Project;
-    const initialProposals = page.props.proposals;
+    const { project: currentProject, proposals: initialProposals } = page.props;
     const projectId = currentProject.id;
 
-    // State management
     const [mainTab, setMainTab] = useState<TabsValue>('objectives');
     const [subTab, setSubTab] = useState<SubTabValue>('time');
     const [confirmationOpen, setConfirmationOpen] = useState(false);
@@ -83,120 +91,69 @@ export default function ProjectDetailPage() {
     const [confirmationTarget, setConfirmationTarget] = useState<ConfirmationTarget>('objective');
     const [itemToAction, setItemToAction] = useState('');
     const [editObjectiveOpen, setEditObjectiveOpen] = useState(false);
-    const [editingObjective, setEditingObjective] = useState<Proposal | undefined>();
+    const [editingObjective, setEditingObjective] = useState<Proposal>();
 
-    // Proposals state
-    const [proposals, setProposals] = useState<{
-        goal: Proposal[];
-        time: Proposal[];
-        budget: Proposal[];
-    }>({
-        goal: [],
-        time: [],
-        budget: []
+    const [proposals, setProposals] = useState({
+        goal: [] as Proposal[],
+        time: [] as Proposal[],
+        budget: [] as Proposal[],
     });
 
-    // State pour les propositions validées
-    const [acceptedProposals, setAcceptedProposals] = useState<{
-        goals: Proposal[];
-        startDates: Proposal[];
-        endDates: Proposal[];
-        budgets: Proposal[];
-    }>({
-        goals: [],
-        startDates: [],
-        endDates: [],
-        budgets: []
+    const [acceptedProposals, setAcceptedProposals] = useState<AcceptedProposalsState>(null);
+
+    const [formValues, setFormValues] = useState({
+        objective: '',
+        startDate: '',
+        endDate: '',
+        budgetAmount: '',
     });
 
-    // Initialiser les propositions avec les données initiales
     useEffect(() => {
         if (initialProposals?.data) {
-            // Séparer les propositions par type
-            const goalProposals = initialProposals.data.filter((p: Proposal) => p.type === 'goal');
-            const timeProposals = initialProposals.data.filter((p: Proposal) => ['start_date', 'end_date'].includes(p.type));
-            const budgetProposals = initialProposals.data.filter((p: Proposal) => p.type === 'budget');
-
-            // Mettre à jour l'état
             setProposals({
-                goal: goalProposals,
-                time: timeProposals,
-                budget: budgetProposals
-            });
-
-            console.log('Propositions chargées:', {
-                objectifs: goalProposals,
-                temps: timeProposals,
-                budget: budgetProposals
+                goal: initialProposals.data.filter((proposal: Proposal) => proposal.type === 'goal'),
+                time: initialProposals.data.filter((proposal: Proposal) => ['start_date', 'end_date'].includes(proposal.type)),
+                budget: initialProposals.data.filter((proposal: Proposal) => proposal.type === 'budget'),
             });
         }
-    }, [initialProposals]);  // Dépendre de initialProposals pour recharger si les données changent
+    }, [initialProposals]);
 
-    // Séparer les propositions de temps par type
-    const startDateProposals = proposals.time.filter(p => p.type === 'start_date');
-    const endDateProposals = proposals.time.filter(p => p.type === 'end_date');
-
-    // Charger les propositions validées au montage du composant
     useEffect(() => {
         const fetchAcceptedProposals = async () => {
             try {
-                const response = await fetch(`/api/projects/${currentProject.id}/accepted-proposals`, {
+                const response = await fetch(`/api/projects/${projectId}/accepted-proposals`, {
                     headers: {
                         'Content-Type': 'application/json',
+                        'Accept': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                     },
+                    credentials: 'include'
                 });
 
-                if (!response.ok) {
-                    throw new Error('Failed to fetch accepted proposals');
-                }
-
-                const data = await response.json();
-                setAcceptedProposals(data.data);
-
-                console.log('Accepted proposals loaded:', data.data);
-            } catch (error: any) {
-                console.error('Error fetching accepted proposals:', error);
-                toast.error(error.message || 'Failed to fetch accepted proposals');
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                setAcceptedProposals(await response.json());
+            } catch (error) {
+                console.error('Error loading accepted proposals:', error);
+                toast.error('Error loading accepted proposals');
             }
         };
 
         fetchAcceptedProposals();
-    }, [currentProject.id]);
+    }, [projectId]);
 
-    // Vérifier si le projet peut être activé
-    const canActivateProject = 
+    const canActivateProject = acceptedProposals ? (
         acceptedProposals.goals.length > 0 &&
         acceptedProposals.startDates.length > 0 &&
         acceptedProposals.endDates.length > 0 &&
-        acceptedProposals.budgets.length > 0;
+        acceptedProposals.budgets.length > 0
+    ) : false;
 
-    // Form states
-    const [newObjective, setNewObjective] = useState('');
-    const [newStartDate, setNewStartDate] = useState('');
-    const [newEndDate, setNewEndDate] = useState('');
-    const [newBudgetAmount, setNewBudgetAmount] = useState('');
-
-    // State for new inputs
-    const [newProposal, setNewProposal] = useState('');
-
-    // Format date for display
     const formatDate = (dateString: string) => {
-        if (!dateString) return 'Non définie';
+        if (!dateString) return 'Not defined';
         const date = new Date(dateString);
         return format(date, "EEEE dd MMMM yyyy", { locale: fr }).replace(/^\w/, c => c.toUpperCase());
     };
 
-    // Handle budget input change
-    const handleBudgetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value;
-        // Accepte uniquement les chiffres et le point décimal
-        if (value === '' || /^\d*\.?\d*$/.test(value)) {
-            setNewBudgetAmount(value);
-        }
-    };
-
-    // Format budget for display
     const formatBudget = (value: string | number): string => {
         const numericValue = typeof value === 'string' ? parseFloat(value) : value;
         return new Intl.NumberFormat('fr-FR', {
@@ -205,64 +162,48 @@ export default function ProjectDetailPage() {
         }).format(numericValue);
     };
 
-    // Render status icon
     const renderStatusIcon = (status: ProposalStatus) => {
-        switch (status) {
-            case 'pending':
-                return <Clock className="h-4 w-4 text-amber-500" />;
-            case 'accepted':
-                return <Check className="h-4 w-4 text-emerald-500" />;
-            case 'rejected':
-                return <X className="h-4 w-4 text-rose-500" />;
-        }
+        const icons = {
+            pending: <Clock className="h-4 w-4 text-amber-500" />,
+            accepted: <Check className="h-4 w-4 text-emerald-500" />,
+            rejected: <X className="h-4 w-4 text-rose-500" />,
+        };
+        return icons[status];
     };
 
-    // Fetch proposals function
     const fetchProposals = async (type?: 'goal' | 'time' | 'budget') => {
         try {
             const apiUrl = `/api/projects/${currentProject.id}/proposals${type ? `/${type}` : ''}`;
-            console.log('Fetching proposals from:', apiUrl);
-            
             const response = await fetch(apiUrl, {
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                 },
+                credentials: 'include'
             });
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Failed to fetch proposals');
-            }
+            if (!response.ok) throw new Error(await response.json().then(data => data.message || 'Failed to fetch proposals'));
 
             const data = await response.json();
             
-            // Filtrer les données en fonction du type
-            const filteredData = type ? data.data.filter((p: Proposal) => {
-                if (type === 'time') {
-                    return ['start_date', 'end_date'].includes(p.type);
-                }
-                return p.type === type;
-            }) : data.data;
-            
-            // Mettre à jour l'état en fonction du type
-            setProposals(prev => ({
-                ...prev,
-                [type || 'goal']: filteredData
-            }));
-
-            console.log('Propositions récupérées:', {
-                type,
-                données: filteredData,
-                url: apiUrl
-            });
+            if (type) {
+                setProposals(prev => ({
+                    ...prev,
+                    [type]: data.data.filter((p: Proposal) => type === 'time' ? ['start_date', 'end_date'].includes(p.type) : p.type === type)
+                }));
+            } else {
+                setProposals({
+                    goal: data.data.filter((p: Proposal) => p.type === 'goal'),
+                    time: data.data.filter((p: Proposal) => ['start_date', 'end_date'].includes(p.type)),
+                    budget: data.data.filter((p: Proposal) => p.type === 'budget'),
+                });
+            }
         } catch (error: any) {
-            console.error('Erreur lors de la récupération des propositions:', error);
-            toast.error(error.message || 'Échec de la récupération des propositions');
+            console.error('Error fetching proposals:', error);
+            toast.error(error.message || 'Failed to fetch proposals');
         }
     };
 
-    // Handle adding a new proposal
     const handleAddProposal = async (type: 'goal' | 'start_date' | 'end_date' | 'budget', value: string) => {
         try {
             const response = await fetch(`/api/projects/${currentProject.id}/proposals`, {
@@ -274,18 +215,10 @@ export default function ProjectDetailPage() {
                 body: JSON.stringify({ type, value }),
             });
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Failed to add proposal');
-            }
+            if (!response.ok) throw new Error(await response.json().then(data => data.message || 'Failed to add proposal'));
 
-            // Clear form fields
-            if (type === 'goal') setNewObjective('');
-            if (type === 'start_date') setNewStartDate('');
-            if (type === 'end_date') setNewEndDate('');
-            if (type === 'budget') setNewBudgetAmount('');
-
-            // Refresh data
+            setFormValues(prev => ({ ...prev, [type === 'goal' ? 'objective' : type === 'budget' ? 'budgetAmount' : type === 'start_date' ? 'startDate' : 'endDate']: '' }));
+            
             if (type === 'goal') fetchProposals('goal');
             if (type === 'start_date' || type === 'end_date') fetchProposals('time');
             if (type === 'budget') fetchProposals('budget');
@@ -296,13 +229,48 @@ export default function ProjectDetailPage() {
         }
     };
 
-    // Handle updating proposal status
     const updateProposalStatus = async (id: string, status: 'accepted' | 'rejected' | 'pending') => {
         try {
-            const apiUrl = `/api/projects/proposals/${id}/status`;
-            console.log('Updating proposal status:', { apiUrl, status });
+            const allProposals = [...proposals.goal, ...proposals.time, ...proposals.budget];
+            const proposal = allProposals.find(p => p.id === id);
+            if (!proposal) throw new Error('Proposal not found');
 
-            const response = await fetch(apiUrl, {
+            if (status === 'accepted' && proposal.type !== 'goal') {
+                const currentAccepted = acceptedProposals?.[
+                    proposal.type === 'budget' ? 'budgets' : 
+                    proposal.type === 'start_date' ? 'startDates' : 'endDates'
+                ][0];
+
+                if (currentAccepted) {
+                    await fetch(`/api/projects/proposals/${currentAccepted.id}/status`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                        },
+                        body: JSON.stringify({ status: 'rejected' })
+                    });
+                }
+
+                const otherProposals = proposal.type === 'budget' 
+                    ? proposals.budget.filter(p => p.id !== id)
+                    : proposals.time.filter(p => p.type === proposal.type && p.id !== id);
+
+                for (const p of otherProposals) {
+                    if (p.status !== 'rejected') {
+                        await fetch(`/api/projects/proposals/${p.id}/status`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                            },
+                            body: JSON.stringify({ status: 'rejected' })
+                        });
+                    }
+                }
+            }
+
+            const response = await fetch(`/api/projects/proposals/${id}/status`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -311,97 +279,56 @@ export default function ProjectDetailPage() {
                 body: JSON.stringify({ status })
             });
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Failed to update proposal status');
-            }
+            if (!response.ok) throw new Error('Failed to update status');
 
-            // Refresh data based on the proposal type
-            if (mainTab === 'objectives') {
-                fetchProposals('goal');
-            } else if (mainTab === 'constraints') {
-                if (subTab === 'time') {
-                    fetchProposals('time');
-                } else if (subTab === 'budget') {
-                    fetchProposals('budget');
+            setAcceptedProposals(prev => {
+                if (!prev) return prev;
+                const newState = { ...prev };
+                const key = proposal.type === 'goal' ? 'goals' : 
+                          proposal.type === 'start_date' ? 'startDates' : 
+                          proposal.type === 'end_date' ? 'endDates' : 'budgets';
+
+                if (status === 'accepted') {
+                    newState[key] = key === 'goals' ? [...prev[key], proposal] : [proposal];
+                } else {
+                    newState[key] = prev[key].filter(p => p.id !== id);
                 }
-            }
+                return newState;
+            });
 
-            // Recharger les propositions validées
-            const fetchAcceptedProposals = async () => {
-                try {
-                    const response = await fetch(`/api/projects/${currentProject.id}/accepted-proposals`, {
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-                        },
-                    });
-
-                    if (!response.ok) {
-                        throw new Error('Failed to fetch accepted proposals');
-                    }
-
-                    const data = await response.json();
-                    setAcceptedProposals(data.data);
-                } catch (error: any) {
-                    console.error('Error fetching accepted proposals:', error);
-                    toast.error(error.message || 'Failed to fetch accepted proposals');
-                }
-            };
-
-            await fetchAcceptedProposals();
-
-            const statusMessages = {
-                pending: 'mise en attente',
-                accepted: 'acceptée',
-                rejected: 'rejetée'
-            };
-            toast.success(`Proposition ${statusMessages[status]} avec succès`);
-        } catch (error: any) {
-            console.error('Erreur lors de la mise à jour du statut:', error);
-            toast.error(error.message || 'Échec de la mise à jour du statut');
+            await fetchProposals();
+            toast.success(status === 'accepted' ? 'Proposal accepted' : status === 'rejected' ? 'Proposal rejected' : 'Proposal set to pending');
+            setConfirmationOpen(false);
+        } catch (error) {
+            console.error('Error updating status:', error);
+            toast.error('Error updating status');
         }
     };
 
-    // Handle deleting a proposal
     const deleteProposal = async (id: string) => {
         try {
-            const apiUrl = `/api/projects/proposals/${id}`;
-            console.log('Deleting proposal:', { apiUrl });
-
-            const response = await fetch(apiUrl, {
+            const response = await fetch(`/api/projects/proposals/${id}`, {
                 method: 'DELETE',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
                 },
             });
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Failed to delete proposal');
-            }
+            if (!response.ok) throw new Error(await response.json().then(data => data.message || 'Failed to delete proposal'));
 
-            // Refresh data
             if (mainTab === 'objectives') fetchProposals('goal');
-            else if (mainTab === 'constraints') {
-                if (subTab === 'time') fetchProposals('time');
-                else if (subTab === 'budget') fetchProposals('budget');
-            }
+            else if (mainTab === 'constraints') fetchProposals(subTab === 'time' ? 'time' : 'budget');
 
             toast.success('Proposal deleted successfully');
         } catch (error: any) {
-            console.error('Erreur lors de la suppression:', error);
-            toast.error(error.message || 'Échec de la suppression');
+            console.error('Error deleting proposal:', error);
+            toast.error(error.message || 'Failed to delete');
         }
     };
 
-    // Handle editing a proposal
     const editProposal = async (id: string, value: string, type: string) => {
         try {
-            const apiUrl = `/api/projects/proposals/${id}`;
-            console.log('Editing proposal:', { apiUrl, value, type });
-
-            const response = await fetch(apiUrl, {
+            const response = await fetch(`/api/projects/proposals/${id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -410,27 +337,19 @@ export default function ProjectDetailPage() {
                 body: JSON.stringify({ value, type }),
             });
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Failed to update proposal');
-            }
+            if (!response.ok) throw new Error(await response.json().then(data => data.message || 'Failed to update proposal'));
 
-            // Refresh data
             if (mainTab === 'objectives') fetchProposals('goal');
-            else if (mainTab === 'constraints') {
-                if (subTab === 'time') fetchProposals('time');
-                else if (subTab === 'budget') fetchProposals('budget');
-            }
+            else if (mainTab === 'constraints') fetchProposals(subTab === 'time' ? 'time' : 'budget');
 
             toast.success('Proposal updated successfully');
             setEditObjectiveOpen(false);
         } catch (error: any) {
-            console.error('Erreur lors de la modification:', error);
-            toast.error(error.message || 'Échec de la modification');
+            console.error('Error editing proposal:', error);
+            toast.error(error.message || 'Failed to update');
         }
     };
 
-    // Confirmation dialog handlers
     const openConfirmationDialog = (action: ConfirmationAction, target: ConfirmationTarget, id: string) => {
         setConfirmationAction(action);
         setConfirmationTarget(target);
@@ -439,19 +358,12 @@ export default function ProjectDetailPage() {
     };
 
     const handleConfirmAction = () => {
-        switch (confirmationAction) {
-            case 'validate':
-            case 'reject':
-                updateProposalStatus(itemToAction, confirmationAction === 'validate' ? 'accepted' : 'rejected');
-                break;
-            case 'delete':
-                deleteProposal(itemToAction);
-                break;
-        }
+        if (confirmationAction === 'validate') updateProposalStatus(itemToAction, 'accepted');
+        else if (confirmationAction === 'reject') updateProposalStatus(itemToAction, 'rejected');
+        else deleteProposal(itemToAction);
         setConfirmationOpen(false);
     };
 
-    // Team members data
     const members: Member[] = [
         {
             id: 'mem1',
@@ -460,37 +372,13 @@ export default function ProjectDetailPage() {
             level: 'Senior',
             avatar: '/placeholder.svg?height=40&width=40',
         },
-        // ... other members
     ];
 
-    // Load initial data
     useEffect(() => {
-        if (mainTab === 'objectives') {
-            fetchProposals('goal');
-        } else if (mainTab === 'constraints') {
-            if (subTab === 'time') {
-                fetchProposals('time');
-            } else if (subTab === 'budget') {
-                fetchProposals('budget');
-            }
-        }
+        if (mainTab === 'objectives') fetchProposals('goal');
+        else if (mainTab === 'constraints') fetchProposals(subTab === 'time' ? 'time' : 'budget');
     }, [mainTab, subTab]);
 
-    // Load data when component mounts
-    useEffect(() => {
-        fetchProposals('goal');
-    }, []);
-
-    // Handle tab changes with type assertion
-    const handleMainTabChange = (value: string) => {
-        setMainTab(value as TabsValue);
-    };
-
-    const handleSubTabChange = (value: string) => {
-        setSubTab(value as SubTabValue);
-    };
-
-    // Fonction pour activer le projet
     const activateProject = async () => {
         try {
             const response = await fetch(`/api/projects/${currentProject.id}/activate`, {
@@ -501,20 +389,14 @@ export default function ProjectDetailPage() {
                 },
             });
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Failed to activate project');
-            }
-
+            if (!response.ok) throw new Error(await response.json().then(data => data.message || 'Failed to activate project'));
             toast.success('Project activated successfully');
-            // Recharger la page pour mettre à jour le statut
             window.location.reload();
         } catch (error: any) {
             toast.error(error.message || 'Failed to activate project');
         }
     };
 
-    // Fonction pour rejeter le projet
     const rejectProject = async () => {
         try {
             const response = await fetch(`/api/projects/${currentProject.id}/reject`, {
@@ -525,16 +407,11 @@ export default function ProjectDetailPage() {
                 },
             });
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Failed to reject project');
-            }
-
-            toast.success('Projet rejeté avec succès');
-            // Recharger la page pour mettre à jour le statut
+            if (!response.ok) throw new Error(await response.json().then(data => data.message || 'Failed to reject project'));
+            toast.success('Project rejected successfully');
             window.location.reload();
         } catch (error: any) {
-            toast.error(error.message || 'Échec du rejet du projet');
+            toast.error(error.message || 'Failed to reject project');
         }
     };
 
@@ -542,7 +419,6 @@ export default function ProjectDetailPage() {
         <ProjectLayout>
             <div className="min-h-screen bg-slate-800 p-6 text-white">
                 <div className="mx-auto max-w-7xl space-y-6">
-                    {/* Header with back button and project title */}
                     <div className="flex items-start justify-between">
                         <div className="flex items-center gap-4">
                             <Button variant="outline" size="icon" asChild>
@@ -562,7 +438,6 @@ export default function ProjectDetailPage() {
                         </div>
                     </div>
 
-                    {/* Project description */}
                     <Card className="border-slate-700 bg-slate-900">
                         <CardHeader>
                             <CardTitle>Project Overview</CardTitle>
@@ -572,7 +447,6 @@ export default function ProjectDetailPage() {
                         </CardContent>
                     </Card>
 
-                    {/* Validated Proposals Summary Card */}
                     <Card className="border-slate-700 bg-slate-900">
                         <CardHeader>
                             <CardTitle>Validated Proposals</CardTitle>
@@ -582,153 +456,46 @@ export default function ProjectDetailPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-6">
-                                {/* Validated Objectives */}
-                                <div>
-                                    <h3 className="mb-3 text-lg font-medium">Accepted Objectives</h3>
-                                    <div className="space-y-2">
-                                        {acceptedProposals.goals.length > 0 ? (
-                                            acceptedProposals.goals.map(goal => (
-                                                <div key={goal.id} className="rounded-md bg-slate-800 p-3">
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-3">
-                                                            <Check className="h-4 w-4 text-emerald-500" />
-                                                            <span className="text-slate-200">{goal.value}</span>
+                                {['goals', 'startDates', 'endDates', 'budgets'].map((type) => (
+                                    <div key={type}>
+                                        <h3 className="mb-3 text-lg font-medium">
+                                            Accepted {type.replace('s', type === 'budgets' ? '' : ' ').replace(/([A-Z])/g, ' $1').trim()}
+                                        </h3>
+                                        <div className="space-y-2">
+                                            {acceptedProposals && 
+                                             acceptedProposals[type as keyof typeof acceptedProposals] && 
+                                             acceptedProposals[type as keyof typeof acceptedProposals].length > 0 ? (
+                                                acceptedProposals[type as keyof typeof acceptedProposals].map((item: AcceptedProposal) => (
+                                                    <div key={item.id} className="rounded-md bg-slate-800 p-3">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-3">
+                                                                <Check className="h-4 w-4 text-emerald-500" />
+                                                                <span className="text-slate-200">
+                                                                    {type === 'budgets' ? formatBudget(item.value) : 
+                                                                     type.includes('Date') ? formatDate(String(item.value)) : item.value}
+                                                                </span>
+                                                            </div>
                                                         </div>
-                                                        {currentProject.status === 'pending' && (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                className="h-8 border-amber-700 bg-slate-800 hover:bg-amber-900 hover:text-amber-500"
-                                                                onClick={() => updateProposalStatus(goal.id, 'pending')}
-                                                            >
-                                                                Annuler
-                                                            </Button>
-                                                        )}
                                                     </div>
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <p className="text-slate-400 italic">No accepted objectives yet</p>
-                                        )}
+                                                ))
+                                            ) : (
+                                                <p className="text-slate-400 italic">No accepted {type.toLowerCase().replace('s', '')}</p>
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
+                                ))}
 
-                                {/* Validated Time Constraints - Start Date */}
-                                <div>
-                                    <h3 className="mb-3 text-lg font-medium">Accepted Start Dates</h3>
-                                    <div className="space-y-2">
-                                        {acceptedProposals.startDates.length > 0 ? (
-                                            acceptedProposals.startDates.map(time => (
-                                                <div key={time.id} className="rounded-md bg-slate-800 p-3">
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-3">
-                                                            <Check className="h-4 w-4 text-emerald-500" />
-                                                            <span className="text-slate-200">
-                                                                {formatDate(String(time.value))}
-                                                            </span>
-                                                        </div>
-                                                        {currentProject.status === 'pending' && (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                className="h-8 border-amber-700 bg-slate-800 hover:bg-amber-900 hover:text-amber-500"
-                                                                onClick={() => updateProposalStatus(time.id, 'pending')}
-                                                            >
-                                                                Annuler
-                                                            </Button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <p className="text-slate-400 italic">No accepted start date yet</p>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Validated Time Constraints - End Date */}
-                                <div>
-                                    <h3 className="mb-3 text-lg font-medium">Accepted End Dates</h3>
-                                    <div className="space-y-2">
-                                        {acceptedProposals.endDates.length > 0 ? (
-                                            acceptedProposals.endDates.map(time => (
-                                                <div key={time.id} className="rounded-md bg-slate-800 p-3">
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-3">
-                                                            <Check className="h-4 w-4 text-emerald-500" />
-                                                            <span className="text-slate-200">
-                                                                {formatDate(String(time.value))}
-                                                            </span>
-                                                        </div>
-                                                        {currentProject.status === 'pending' && (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                className="h-8 border-amber-700 bg-slate-800 hover:bg-amber-900 hover:text-amber-500"
-                                                                onClick={() => updateProposalStatus(time.id, 'pending')}
-                                                            >
-                                                                Annuler
-                                                            </Button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <p className="text-slate-400 italic">No accepted end date yet</p>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Validated Budget */}
-                                <div>
-                                    <h3 className="mb-3 text-lg font-medium">Accepted Budget</h3>
-                                    <div className="space-y-2">
-                                        {acceptedProposals.budgets.length > 0 ? (
-                                            acceptedProposals.budgets.map(budget => (
-                                                <div key={budget.id} className="rounded-md bg-slate-800 p-3">
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-3">
-                                                            <Check className="h-4 w-4 text-emerald-500" />
-                                                            <span className="text-slate-200">
-                                                                {formatBudget(budget.value)}
-                                                            </span>
-                                                        </div>
-                                                        {currentProject.status === 'pending' && (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                className="h-8 border-amber-700 bg-slate-800 hover:bg-amber-900 hover:text-amber-500"
-                                                                onClick={() => updateProposalStatus(budget.id, 'pending')}
-                                                            >
-                                                                Annuler
-                                                            </Button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <p className="text-slate-400 italic">No accepted budget yet</p>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {/* Project Action Buttons */}
                                 {currentProject.status === 'pending' && (
                                     <div className="mt-6 flex justify-end gap-2">
-                                        <Button
-                                            onClick={rejectProject}
-                                            className="bg-rose-600 hover:bg-rose-700"
-                                        >
-                                            <X className="mr-2 h-4 w-4" />
-                                            Rejeter le projet
+                                        <Button onClick={rejectProject} className="bg-rose-600 hover:bg-rose-700">
+                                            <X className="mr-2 h-4 w-4" /> Reject Project
                                         </Button>
                                         <Button
                                             onClick={activateProject}
                                             className="bg-emerald-600 hover:bg-emerald-700"
                                             disabled={!canActivateProject}
                                         >
-                                            <Check className="mr-2 h-4 w-4" />
-                                            Valider le projet
+                                            <Check className="mr-2 h-4 w-4" /> Validate Project
                                         </Button>
                                     </div>
                                 )}
@@ -736,36 +503,23 @@ export default function ProjectDetailPage() {
                         </CardContent>
                     </Card>
 
-                    {/* Project details tabs */}
-                    <Tabs 
-                        value={mainTab} 
-                        onValueChange={handleMainTabChange} 
-                        className="w-full"
-                    >
+                    <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as TabsValue)} className="w-full">
                         <TabsList className="border-slate-700 bg-slate-900">
-                            <TabsTrigger
-                                value="objectives"
-                                onClick={() => {
-                                    handleMainTabChange('objectives');
-                                    fetchProposals('goal');
-                                }}
-                            >
-                                Objectives
-                            </TabsTrigger>
-                            <TabsTrigger
-                                value="constraints"
-                                onClick={() => {
-                                    handleMainTabChange('constraints');
-                                    handleSubTabChange('time');
-                                    fetchProposals('time');
-                                }}
-                            >
-                                Constraints
-                            </TabsTrigger>
-                            <TabsTrigger value="members">Members</TabsTrigger>
+                            {['objectives', 'constraints', 'members'].map((tab) => (
+                                <TabsTrigger
+                                    key={tab}
+                                    value={tab}
+                                    onClick={() => {
+                                        setMainTab(tab as TabsValue);
+                                        if (tab === 'objectives') fetchProposals('goal');
+                                        else if (tab === 'constraints') fetchProposals('time');
+                                    }}
+                                >
+                                    {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                                </TabsTrigger>
+                            ))}
                         </TabsList>
 
-                        {/* Objectives tab */}
                         <TabsContent value="objectives">
                             <Card className="border-slate-700 bg-slate-900">
                                 <CardHeader>
@@ -774,13 +528,9 @@ export default function ProjectDetailPage() {
                                 </CardHeader>
                                 <CardContent>
                                     <div className="space-y-4">
-                                        {/* Liste des objectifs */}
                                         {proposals.goal.length > 0 ? (
                                             proposals.goal.map((objective) => (
-                                                <div
-                                                    key={objective.id}
-                                                    className="flex items-center justify-between rounded-md border border-slate-700 bg-slate-800 p-3"
-                                                >
+                                                <div key={objective.id} className="flex items-center justify-between rounded-md border border-slate-700 bg-slate-800 p-3">
                                                     <div className="flex items-center gap-3">
                                                         {renderStatusIcon(objective.status as ProposalStatus)}
                                                         <span className="text-slate-200">{objective.value}</span>
@@ -792,7 +542,7 @@ export default function ProjectDetailPage() {
                                                                     <Button
                                                                         size="icon"
                                                                         variant="outline"
-                                                                        className="h-8 w-8 border-emerald-700 bg-slate-800 hover:bg-emerald-900 hover:text-emerald-500"
+                                                                        className="h-8 w-8 border-emerald-700 hover:bg-emerald-900 hover:text-emerald-500"
                                                                         onClick={() => openConfirmationDialog('validate', 'objective', objective.id)}
                                                                     >
                                                                         <Check className="h-4 w-4 text-emerald-500" />
@@ -800,7 +550,7 @@ export default function ProjectDetailPage() {
                                                                     <Button
                                                                         size="icon"
                                                                         variant="outline"
-                                                                        className="h-8 w-8 border-rose-700 bg-slate-800 hover:bg-rose-900 hover:text-rose-500"
+                                                                        className="h-8 w-8 border-rose-700 hover:bg-rose-900 hover:text-rose-500"
                                                                         onClick={() => openConfirmationDialog('reject', 'objective', objective.id)}
                                                                     >
                                                                         <X className="h-4 w-4 text-rose-500" />
@@ -810,7 +560,7 @@ export default function ProjectDetailPage() {
                                                             <Button
                                                                 size="icon"
                                                                 variant="outline"
-                                                                className="h-8 w-8 border-slate-700 bg-slate-800 hover:bg-slate-700"
+                                                                className="h-8 w-8 border-slate-700 hover:bg-slate-700"
                                                                 onClick={() => openConfirmationDialog('delete', 'objective', objective.id)}
                                                             >
                                                                 <Trash className="h-4 w-4 text-slate-400" />
@@ -818,7 +568,7 @@ export default function ProjectDetailPage() {
                                                             <Button
                                                                 size="icon"
                                                                 variant="outline"
-                                                                className="h-8 w-8 border-slate-700 bg-slate-800 hover:bg-slate-700"
+                                                                className="h-8 w-8 border-slate-700 hover:bg-slate-700"
                                                                 onClick={() => {
                                                                     setEditingObjective(objective);
                                                                     setEditObjectiveOpen(true);
@@ -835,16 +585,18 @@ export default function ProjectDetailPage() {
                                         )}
                                     </div>
 
-                                    {/* Add new objective - Only show when project is pending */}
                                     {currentProject.status === 'pending' && (
                                         <div className="mt-4 flex gap-2">
                                             <Input
                                                 placeholder="Add a new objective..."
-                                                value={newObjective}
-                                                onChange={(e) => setNewObjective(e.target.value)}
+                                                value={formValues.objective}
+                                                onChange={(e) => setFormValues({...formValues, objective: e.target.value})}
                                                 className="border-slate-700 bg-slate-800 text-white"
                                             />
-                                            <Button onClick={() => handleAddProposal('goal', newObjective)} className="bg-blue-600 hover:bg-blue-700">
+                                            <Button 
+                                                onClick={() => handleAddProposal('goal', formValues.objective)} 
+                                                className="bg-blue-600 hover:bg-blue-700"
+                                            >
                                                 <Plus className="mr-2 h-4 w-4" /> Add
                                             </Button>
                                         </div>
@@ -853,7 +605,6 @@ export default function ProjectDetailPage() {
                             </Card>
                         </TabsContent>
 
-                        {/* Constraints tab */}
                         <TabsContent value="constraints">
                             <Card className="border-slate-700 bg-slate-900">
                                 <CardHeader>
@@ -861,201 +612,106 @@ export default function ProjectDetailPage() {
                                     <CardDescription className="text-slate-400">Time and budget limitations for this project</CardDescription>
                                 </CardHeader>
                                 <CardContent>
-                                    <Tabs value={subTab} onValueChange={handleSubTabChange} className="w-full">
+                                    <Tabs value={subTab} onValueChange={(v) => setSubTab(v as SubTabValue)} className="w-full">
                                         <TabsList className="border-slate-700 bg-slate-800">
-                                            <TabsTrigger
-                                                value="time"
-                                                onClick={() => {
-                                                    handleSubTabChange('time');
-                                                    fetchProposals('time');
-                                                }}
-                                            >
-                                                Time
-                                            </TabsTrigger>
-                                            <TabsTrigger
-                                                value="budget"
-                                                onClick={() => {
-                                                    handleSubTabChange('budget');
-                                                    fetchProposals('budget');
-                                                }}
-                                            >
-                                                Budget
-                                            </TabsTrigger>
+                                            {['time', 'budget'].map((tab) => (
+                                                <TabsTrigger
+                                                    key={tab}
+                                                    value={tab}
+                                                    onClick={() => {
+                                                        setSubTab(tab as SubTabValue);
+                                                        fetchProposals(tab as 'time' | 'budget');
+                                                    }}
+                                                >
+                                                    {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                                                </TabsTrigger>
+                                            ))}
                                         </TabsList>
 
-                                        {/* Time tab */}
                                         <TabsContent value="time">
                                             <Card className="mt-4 border-slate-700 bg-slate-800">
                                                 <CardContent className="pt-6">
                                                     <div className="space-y-4">
-                                                        <h3 className="mb-3 text-lg font-medium">Start Date Proposals</h3>
-
-                                                        {/* Start Date proposals list */}
-                                                        <div className="space-y-3">
-                                                            {proposals.time.filter((p) => p.type === 'start_date').length > 0 ? (
-                                                                proposals.time
-                                                                    .filter((p) => p.type === 'start_date')
-                                                                    .map((proposal) => (
-                                                                        <div
-                                                                            key={proposal.id}
-                                                                            className="flex items-center justify-between rounded-md border border-slate-700 bg-slate-800 p-3"
-                                                                        >
-                                                                            <div className="flex items-center gap-3">
-                                                                                {renderStatusIcon(proposal.status as ProposalStatus)}
-                                                                                <span className="text-slate-200">
-                                                                                    {formatDate(String(proposal.value))}
-                                                                                </span>
-                                                                            </div>
-                                                                            {currentProject.status === 'pending' && (
-                                                                                <div className="flex items-center gap-2">
-                                                                                    {proposal.status === 'pending' && (
-                                                                                        <>
+                                                        {['start_date', 'end_date'].map((dateType) => (
+                                                            <div key={dateType}>
+                                                                <h3 className="mb-3 text-lg font-medium">
+                                                                    {dateType.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} Proposals
+                                                                </h3>
+                                                                <div className="space-y-3">
+                                                                    {proposals.time.filter(p => p.type === dateType).length > 0 ? (
+                                                                        proposals.time
+                                                                            .filter(p => p.type === dateType)
+                                                                            .map((proposal) => (
+                                                                                <div key={proposal.id} className="flex items-center justify-between rounded-md border border-slate-700 bg-slate-800 p-3">
+                                                                                    <div className="flex items-center gap-3">
+                                                                                        {renderStatusIcon(proposal.status as ProposalStatus)}
+                                                                                        <span className="text-slate-200">
+                                                                                            {formatDate(String(proposal.value))}
+                                                                                        </span>
+                                                                                    </div>
+                                                                                    {currentProject.status === 'pending' && (
+                                                                                        <div className="flex items-center gap-2">
+                                                                                            {proposal.status === 'pending' && (
+                                                                                                <>
+                                                                                                    <Button
+                                                                                                        size="icon"
+                                                                                                        variant="outline"
+                                                                                                        className="h-8 w-8 border-emerald-700 hover:bg-emerald-900 hover:text-emerald-500"
+                                                                                                        onClick={() => openConfirmationDialog('validate', dateType === 'start_date' ? 'startDate' : 'endDate', proposal.id)}
+                                                                                                    >
+                                                                                                        <Check className="h-4 w-4 text-emerald-500" />
+                                                                                                    </Button>
+                                                                                                    <Button
+                                                                                                        size="icon"
+                                                                                                        variant="outline"
+                                                                                                        className="h-8 w-8 border-rose-700 hover:bg-rose-900 hover:text-rose-500"
+                                                                                                        onClick={() => openConfirmationDialog('reject', dateType === 'start_date' ? 'startDate' : 'endDate', proposal.id)}
+                                                                                                    >
+                                                                                                        <X className="h-4 w-4 text-rose-500" />
+                                                                                                    </Button>
+                                                                                                </>
+                                                                                            )}
                                                                                             <Button
                                                                                                 size="icon"
                                                                                                 variant="outline"
-                                                                                                className="h-8 w-8 border-emerald-700 bg-slate-800 hover:bg-emerald-900 hover:text-emerald-500"
-                                                                                                onClick={() =>
-                                                                                                    openConfirmationDialog('validate', 'startDate', proposal.id)
-                                                                                                }
+                                                                                                className="h-8 w-8 border-slate-700 hover:bg-slate-700"
+                                                                                                onClick={() => openConfirmationDialog('delete', dateType === 'start_date' ? 'startDate' : 'endDate', proposal.id)}
                                                                                             >
-                                                                                                <Check className="h-4 w-4 text-emerald-500" />
+                                                                                                <Trash className="h-4 w-4 text-slate-400" />
                                                                                             </Button>
-                                                                                            <Button
-                                                                                                size="icon"
-                                                                                                variant="outline"
-                                                                                                className="h-8 w-8 border-rose-700 bg-slate-800 hover:bg-rose-900 hover:text-rose-500"
-                                                                                                onClick={() =>
-                                                                                                    openConfirmationDialog('reject', 'startDate', proposal.id)
-                                                                                                }
-                                                                                            >
-                                                                                                <X className="h-4 w-4 text-rose-500" />
-                                                                                            </Button>
-                                                                                        </>
+                                                                                        </div>
                                                                                     )}
-                                                                                    <Button
-                                                                                        size="icon"
-                                                                                        variant="outline"
-                                                                                        className="h-8 w-8 border-slate-700 bg-slate-800 hover:bg-slate-700"
-                                                                                        onClick={() =>
-                                                                                            openConfirmationDialog('delete', 'startDate', proposal.id)
-                                                                                        }
-                                                                                    >
-                                                                                        <Trash className="h-4 w-4 text-slate-400" />
-                                                                                    </Button>
                                                                                 </div>
-                                                                            )}
-                                                                        </div>
-                                                                    ))
-                                                            ) : (
-                                                                <p className="text-gray-500 italic">No start date proposals found</p>
-                                                            )}
-                                                        </div>
+                                                                            ))
+                                                                    ) : (
+                                                                        <p className="text-gray-500 italic">No {dateType.replace('_', ' ')} proposals found</p>
+                                                                    )}
+                                                                </div>
 
-                                                        {/* Add new start date proposal - Only show when project is pending */}
-                                                        {currentProject.status === 'pending' && (
-                                                            <div className="mt-4 flex gap-2">
-                                                                <Input
-                                                                    type="date"
-                                                                    value={newStartDate}
-                                                                    onChange={(e) => setNewStartDate(e.target.value)}
-                                                                    className="border-slate-700 bg-slate-800 text-white"
-                                                                />
-                                                                <Button
-                                                                    onClick={() => handleAddProposal('start_date', newStartDate)}
-                                                                    className="bg-blue-600 hover:bg-blue-700"
-                                                                >
-                                                                    <Plus className="mr-2 h-4 w-4" /> Add
-                                                                </Button>
-                                                            </div>
-                                                        )}
-
-                                                        <Separator className="my-4 bg-slate-700" />
-                                                        <h3 className="mb-3 text-lg font-medium">End Date Proposals</h3>
-
-                                                        {/* End Date proposals list */}
-                                                        <div className="space-y-3">
-                                                            {proposals.time.filter((p) => p.type === 'end_date').length > 0 ? (
-                                                                proposals.time
-                                                                    .filter((p) => p.type === 'end_date')
-                                                                    .map((proposal) => (
-                                                                        <div
-                                                                            key={proposal.id}
-                                                                            className="flex items-center justify-between rounded-md border border-slate-700 bg-slate-800 p-3"
+                                                                {currentProject.status === 'pending' && (
+                                                                    <div className="mt-4 flex gap-2">
+                                                                        <Input
+                                                                            type="date"
+                                                                            value={dateType === 'start_date' ? formValues.startDate : formValues.endDate}
+                                                                            onChange={(e) => setFormValues({...formValues, [dateType === 'start_date' ? 'startDate' : 'endDate']: e.target.value})}
+                                                                            className="border-slate-700 bg-slate-800 text-white"
+                                                                        />
+                                                                        <Button
+                                                                            onClick={() => handleAddProposal(dateType as 'start_date' | 'end_date', dateType === 'start_date' ? formValues.startDate : formValues.endDate)}
+                                                                            className="bg-blue-600 hover:bg-blue-700"
                                                                         >
-                                                                            <div className="flex items-center gap-3">
-                                                                                {renderStatusIcon(proposal.status as ProposalStatus)}
-                                                                                <span className="text-slate-200">
-                                                                                    {formatDate(String(proposal.value))}
-                                                                                </span>
-                                                                            </div>
-                                                                            {currentProject.status === 'pending' && (
-                                                                                <div className="flex items-center gap-2">
-                                                                                    {proposal.status === 'pending' && (
-                                                                                        <>
-                                                                                            <Button
-                                                                                                size="icon"
-                                                                                                variant="outline"
-                                                                                                className="h-8 w-8 border-emerald-700 bg-slate-800 hover:bg-emerald-900 hover:text-emerald-500"
-                                                                                                onClick={() =>
-                                                                                                    openConfirmationDialog('validate', 'endDate', proposal.id)
-                                                                                                }
-                                                                                            >
-                                                                                                <Check className="h-4 w-4 text-emerald-500" />
-                                                                                            </Button>
-                                                                                            <Button
-                                                                                                size="icon"
-                                                                                                variant="outline"
-                                                                                                className="h-8 w-8 border-rose-700 bg-slate-800 hover:bg-rose-900 hover:text-rose-500"
-                                                                                                onClick={() =>
-                                                                                                    openConfirmationDialog('reject', 'endDate', proposal.id)
-                                                                                                }
-                                                                                            >
-                                                                                                <X className="h-4 w-4 text-rose-500" />
-                                                                                            </Button>
-                                                                                        </>
-                                                                                    )}
-                                                                                    <Button
-                                                                                        size="icon"
-                                                                                        variant="outline"
-                                                                                        className="h-8 w-8 border-slate-700 bg-slate-800 hover:bg-slate-700"
-                                                                                        onClick={() =>
-                                                                                            openConfirmationDialog('delete', 'endDate', proposal.id)
-                                                                                        }
-                                                                                    >
-                                                                                        <Trash className="h-4 w-4 text-slate-400" />
-                                                                                    </Button>
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                    ))
-                                                            ) : (
-                                                                <p className="text-gray-500 italic">No end date proposals found</p>
-                                                            )}
-                                                        </div>
-
-                                                        {/* Add new end date proposal - Only show when project is pending */}
-                                                        {currentProject.status === 'pending' && (
-                                                            <div className="mt-4 flex gap-2">
-                                                                <Input
-                                                                    type="date"
-                                                                    value={newEndDate}
-                                                                    onChange={(e) => setNewEndDate(e.target.value)}
-                                                                    className="border-slate-700 bg-slate-800 text-white"
-                                                                />
-                                                                <Button
-                                                                    onClick={() => handleAddProposal('end_date', newEndDate)}
-                                                                    className="bg-blue-600 hover:bg-blue-700"
-                                                                >
-                                                                    <Plus className="mr-2 h-4 w-4" /> Add
-                                                                </Button>
+                                                                            <Plus className="mr-2 h-4 w-4" /> Add
+                                                                        </Button>
+                                                                    </div>
+                                                                )}
+                                                                {dateType === 'start_date' && <Separator className="my-4 bg-slate-700" />}
                                                             </div>
-                                                        )}
+                                                        ))}
                                                     </div>
                                                 </CardContent>
                                             </Card>
                                         </TabsContent>
 
-                                        {/* Budget tab */}
                                         <TabsContent value="budget">
                                             <Card className="mt-4 border-slate-700 bg-slate-800">
                                                 <CardContent className="pt-6">
@@ -1075,14 +731,10 @@ export default function ProjectDetailPage() {
                                                         <Separator className="my-4 bg-slate-700" />
                                                         <h3 className="mb-3 text-lg font-medium">Budget Proposals</h3>
 
-                                                        {/* Budget proposals list */}
                                                         <div className="space-y-3">
                                                             {proposals.budget.length > 0 ? (
                                                                 proposals.budget.map((proposal) => (
-                                                                    <div
-                                                                        key={proposal.id}
-                                                                        className="flex items-center justify-between rounded-md border border-slate-700 bg-slate-800 p-3"
-                                                                    >
+                                                                    <div key={proposal.id} className="flex items-center justify-between rounded-md border border-slate-700 bg-slate-800 p-3">
                                                                         <div className="flex items-center gap-3">
                                                                             {renderStatusIcon(proposal.status as ProposalStatus)}
                                                                             <span className="text-slate-200">${proposal.value}</span>
@@ -1094,20 +746,16 @@ export default function ProjectDetailPage() {
                                                                                         <Button
                                                                                             size="icon"
                                                                                             variant="outline"
-                                                                                            className="h-8 w-8 border-emerald-700 bg-slate-800 hover:bg-emerald-900 hover:text-emerald-500"
-                                                                                            onClick={() =>
-                                                                                                openConfirmationDialog('validate', 'budget', proposal.id)
-                                                                                            }
+                                                                                            className="h-8 w-8 border-emerald-700 hover:bg-emerald-900 hover:text-emerald-500"
+                                                                                            onClick={() => openConfirmationDialog('validate', 'budget', proposal.id)}
                                                                                         >
                                                                                             <Check className="h-4 w-4 text-emerald-500" />
                                                                                         </Button>
                                                                                         <Button
                                                                                             size="icon"
                                                                                             variant="outline"
-                                                                                            className="h-8 w-8 border-rose-700 bg-slate-800 hover:bg-rose-900 hover:text-rose-500"
-                                                                                            onClick={() =>
-                                                                                                openConfirmationDialog('reject', 'budget', proposal.id)
-                                                                                            }
+                                                                                            className="h-8 w-8 border-rose-700 hover:bg-rose-900 hover:text-rose-500"
+                                                                                            onClick={() => openConfirmationDialog('reject', 'budget', proposal.id)}
                                                                                         >
                                                                                             <X className="h-4 w-4 text-rose-500" />
                                                                                         </Button>
@@ -1116,10 +764,8 @@ export default function ProjectDetailPage() {
                                                                                 <Button
                                                                                     size="icon"
                                                                                     variant="outline"
-                                                                                    className="h-8 w-8 border-slate-700 bg-slate-800 hover:bg-slate-700"
-                                                                                    onClick={() =>
-                                                                                        openConfirmationDialog('delete', 'budget', proposal.id)
-                                                                                    }
+                                                                                    className="h-8 w-8 border-slate-700 hover:bg-slate-700"
+                                                                                    onClick={() => openConfirmationDialog('delete', 'budget', proposal.id)}
                                                                                 >
                                                                                     <Trash className="h-4 w-4 text-slate-400" />
                                                                                 </Button>
@@ -1132,21 +778,20 @@ export default function ProjectDetailPage() {
                                                             )}
                                                         </div>
 
-                                                        {/* Add new budget proposal - Only show when project is pending */}
                                                         {currentProject.status === 'pending' && (
                                                             <div className="mt-4 flex gap-2">
                                                                 <Input
                                                                     type="text"
                                                                     inputMode="decimal"
                                                                     placeholder="Enter amount"
-                                                                    value={newBudgetAmount}
-                                                                    onChange={handleBudgetChange}
+                                                                    value={formValues.budgetAmount}
+                                                                    onChange={(e) => /^\d*\.?\d*$/.test(e.target.value) && setFormValues({...formValues, budgetAmount: e.target.value})}
                                                                     className="border-slate-700 bg-slate-800 text-white"
                                                                 />
                                                                 <Button
-                                                                    onClick={() => handleAddProposal('budget', newBudgetAmount)}
+                                                                    onClick={() => handleAddProposal('budget', formValues.budgetAmount)}
                                                                     className="bg-blue-600 hover:bg-blue-700"
-                                                                    disabled={!newBudgetAmount || isNaN(parseFloat(newBudgetAmount))}
+                                                                    disabled={!formValues.budgetAmount || isNaN(parseFloat(formValues.budgetAmount))}
                                                                 >
                                                                     <Plus className="mr-2 h-4 w-4" /> Add
                                                                 </Button>
@@ -1161,7 +806,6 @@ export default function ProjectDetailPage() {
                             </Card>
                         </TabsContent>
 
-                        {/* Members tab */}
                         <TabsContent value="members">
                             <Card className="border-slate-700 bg-slate-900">
                                 <CardHeader>
@@ -1176,10 +820,7 @@ export default function ProjectDetailPage() {
                                                     <Avatar>
                                                         <AvatarImage src={member.avatar || '/placeholder.svg'} alt={member.name} />
                                                         <AvatarFallback className="bg-blue-700">
-                                                            {member.name
-                                                                .split(' ')
-                                                                .map((n) => n[0])
-                                                                .join('')}
+                                                            {member.name.split(' ').map(n => n[0]).join('')}
                                                         </AvatarFallback>
                                                     </Avatar>
                                                     <div>
@@ -1200,38 +841,26 @@ export default function ProjectDetailPage() {
                     </Tabs>
                 </div>
 
-                {/* Confirmation Dialog */}
                 <Dialog open={confirmationOpen} onOpenChange={setConfirmationOpen}>
                     <DialogContent className="border-slate-700 bg-slate-900 text-white">
                         <DialogHeader>
                             <DialogTitle>
-                                {confirmationAction === 'validate'
-                                    ? 'Confirm Validation'
-                                    : confirmationAction === 'reject'
-                                      ? 'Confirm Rejection'
-                                      : 'Confirm Deletion'}
+                                {confirmationAction === 'validate' ? 'Confirm Validation' :
+                                 confirmationAction === 'reject' ? 'Confirm Rejection' : 'Confirm Deletion'}
                             </DialogTitle>
                             <DialogDescription className="text-slate-400">
-                                {confirmationAction === 'validate'
-                                    ? 'Are you sure you want to validate this item?'
-                                    : confirmationAction === 'reject'
-                                      ? 'Are you sure you want to reject this item?'
-                                      : 'Are you sure you want to delete this item?'}
+                                {confirmationAction === 'validate' ? 'Are you sure you want to validate this item?' :
+                                 confirmationAction === 'reject' ? 'Are you sure you want to reject this item?' :
+                                 'Are you sure you want to delete this item?'}
                             </DialogDescription>
                         </DialogHeader>
                         <DialogFooter className="flex justify-end space-x-2">
-                            <Button variant="outline" onClick={() => setConfirmationOpen(false)}>
-                                Cancel
-                            </Button>
+                            <Button variant="outline" onClick={() => setConfirmationOpen(false)}>Cancel</Button>
                             <Button
                                 onClick={handleConfirmAction}
-                                className={
-                                    confirmationAction === 'validate'
-                                        ? 'bg-emerald-600 hover:bg-emerald-700'
-                                        : confirmationAction === 'reject'
-                                          ? 'bg-amber-600 hover:bg-amber-700'
-                                          : 'bg-rose-600 hover:bg-rose-700'
-                                }
+                                className={confirmationAction === 'validate' ? 'bg-emerald-600 hover:bg-emerald-700' :
+                                           confirmationAction === 'reject' ? 'bg-amber-600 hover:bg-amber-700' :
+                                           'bg-rose-600 hover:bg-rose-700'}
                             >
                                 Confirm
                             </Button>
@@ -1239,7 +868,6 @@ export default function ProjectDetailPage() {
                     </DialogContent>
                 </Dialog>
 
-                {/* Edit Objective Dialog */}
                 <Dialog open={editObjectiveOpen} onOpenChange={setEditObjectiveOpen}>
                     <DialogContent className="border-slate-700 bg-slate-900 text-white">
                         <DialogHeader>
@@ -1258,15 +886,9 @@ export default function ProjectDetailPage() {
                             </div>
                         </div>
                         <DialogFooter>
-                            <Button variant="outline" onClick={() => setEditObjectiveOpen(false)}>
-                                Cancel
-                            </Button>
+                            <Button variant="outline" onClick={() => setEditObjectiveOpen(false)}>Cancel</Button>
                             <Button
-                                onClick={() => {
-                                    if (editingObjective) {
-                                        editProposal(editingObjective.id, String(editingObjective.value), 'goal');
-                                    }
-                                }}
+                                onClick={() => editingObjective && editProposal(editingObjective.id, String(editingObjective.value), 'goal')}
                                 className="bg-blue-600 hover:bg-blue-700"
                             >
                                 Save Changes

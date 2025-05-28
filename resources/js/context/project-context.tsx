@@ -1,5 +1,6 @@
 "use client"
 
+import { initCsrf } from "@/services/auth"
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import type { Project, PaginatedResponse } from "@/types"
 import { projectApi } from "@/services/api"
@@ -46,14 +47,13 @@ const initialPaginationState: PaginatedResponse<Project> = {
   total: 0,
 }
 
-export function ProjectProvider({ children }: { children: ReactNode }) {
+const ProjectProvider = ({ children }: { children: ReactNode }) => {
   const [projects, setProjects] = useState<PaginatedResponse<Project>>(initialPaginationState)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Charger les projets au montage du composant
   useEffect(() => {
-    loadProjects()
+    getManagerProjects()
   }, [])
 
   const loadProjects = async (page: number = 1) => {
@@ -73,6 +73,13 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const getManagerProjects = async (page: number = 1) => {
     try {
       setLoading(true)
+      // S'assurer que le cookie CSRF est initialisé avant de faire la requête
+      try {
+        await initCsrf()
+      } catch (csrfError) {
+        console.error("Erreur lors de l'initialisation du CSRF:", csrfError)
+      }
+      
       const response = await projectApi.getManagerProjects(page)
       setProjects(response.data)
       setError(null)
@@ -84,7 +91,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }
   }
 
-    const getProjectById = (id: string) => {
+  const getProjectById = (id: string) => {
     return projects.data.find((p) => p.id.toString() === id)
   }
 
@@ -135,30 +142,32 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     }
   }
 
-    return (
-        <ProjectContext.Provider
-            value={{
-                projects,
+  return (
+    <ProjectContext.Provider
+      value={{
+        projects,
         loading,
         error,
-                user: userData,
-                getProjectById,
-                updateProject,
+        user: userData,
+        getProjectById,
+        updateProject,
         createProject,
         deleteProject,
         getManagerProjects,
         loadProjects,
-            }}
-        >
-            {children}
-        </ProjectContext.Provider>
+      }}
+    >
+      {children}
+    </ProjectContext.Provider>
   )
 }
 
-export function useProjects() {
+const useProjects = () => {
   const context = useContext(ProjectContext)
-    if (context === undefined) {
+  if (context === undefined) {
     throw new Error("useProjects must be used within a ProjectProvider")
-    }
+  }
   return context
 }
+
+export { ProjectProvider, useProjects }

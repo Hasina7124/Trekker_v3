@@ -23,7 +23,7 @@ interface SidebarProps {
 
 export function Sidebar({ selectedView, setSelectedView, selectedProjectId, setSelectedProjectId }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
-  const { projects } = useProjects()
+  const { projects, loading } = useProjects()
 
   const navItems = [
     {
@@ -35,7 +35,7 @@ export function Sidebar({ selectedView, setSelectedView, selectedProjectId, setS
       icon: <Briefcase className="h-5 w-5" />,
       label: "Projects",
       value: "projects",
-      subItems: projects.data.map((project) => ({
+      subItems: loading ? [] : projects.data.map((project) => ({
         label: project.title,
         value: project.id.toString(),
         status: project.status,
@@ -59,6 +59,13 @@ export function Sidebar({ selectedView, setSelectedView, selectedProjectId, setS
     },
   ]
 
+  if (loading) {
+    return <div className="w-64 bg-[#1e293b] border-r border-slate-700">
+      <div className="p-4 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#60a5fa]"></div>
+      </div>
+    </div>
+  }
   return (
     <div
       className={cn(

@@ -5,6 +5,7 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
 import { initializeTheme } from './hooks/use-appearance';
 import { EventBusProvider } from '@/EventBus';
+import { Toaster } from 'sonner';
 // import "@amityco/ui-kit-open-source/dist/index.css";
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
@@ -18,6 +19,7 @@ createInertiaApp({
         root.render(
             <EventBusProvider>
                 <App {...props} />
+                <Toaster richColors position="top-right" />
             </EventBusProvider>
         );
     },

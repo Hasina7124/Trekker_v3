@@ -4,13 +4,17 @@ import type { Project, PaginatedResponse } from '@/types';
 // Configuration d'axios avec l'URL de base de l'API
 const api = axios.create({
     baseURL: '/api',
+    withCredentials: true,  // Pour gérer les cookies CSRF de Laravel
     headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'X-Requested-With': 'XMLHttpRequest',
     },
-    withCredentials: true  // Pour gérer les cookies CSRF de Laravel
+    xsrfCookieName: 'XSRF-TOKEN',
+    xsrfHeaderName: 'X-XSRF-TOKEN'
 });
+
+
 
 // Intercepteur pour ajouter le token CSRF
 api.interceptors.request.use((config) => {
@@ -20,6 +24,12 @@ api.interceptors.request.use((config) => {
     }
     return config;
 });
+
+api.interceptors.request.use((config) => {
+    console.log('Request Headers:', config.headers);
+    console.log('Cookies:', document.cookie);
+    return config;
+  });
 
 export const projectApi = {
     // Récupérer tous les projets

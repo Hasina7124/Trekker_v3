@@ -2,6 +2,8 @@
 
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\RequestLogger;
+use App\Http\Middleware\ApiDebugMiddleware;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -26,15 +28,18 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
+            RequestLogger::class,
         ]);
 
         $middleware->api(append: [
             EnsureFrontendRequestsAreStateful::class,
+            RequestLogger::class,
+            ApiDebugMiddleware::class,
         ]);
 
         $middleware->alias([
             'role' => RoleMiddleware::class,
-            'auth:sanctum' => \Laravel\Sanctum\Http\Middleware\AuthenticateSession::class,
+            'auth:sanctum' => \Laravel\Sanctum\Http\Middleware\Authenticate::class,
         ]);
 
         $middleware->validateCsrfTokens(except: [

@@ -14,6 +14,7 @@ export interface Module {
     tasks?: Task[];
     completed: boolean;
     status?: "locked" | "unlocked" | "completed";
+    progress: number;
 }
 
 export type TaskStatus = "en-cours" | "achevé";
@@ -46,53 +47,44 @@ export interface Task {
     comments: TaskComment[];
     estimatedHours: number;
     amount: number;
+    status: 'todo' | 'in_progress' | 'done';
+    assignee_id?: number;
 }
 
 export interface Part {
     id: number;
-    project_id: number;
     title: string;
     description: string;
-    created_at: string;
-    updated_at: string;
-    modules?: Module[];
-    progress?: number; // Calculé à partir des modules
+    progress: number;
+    project_id: number;
 }
 
 export interface ProjectUser {
     id: number;
     project_id: number;
     user_id: number;
-    created_at: string;
-    updated_at: string;
-    user?: User;  // Pour les relations chargées
+    role: string;
+    user?: User;
 }
 
 export interface User {
     id: number;
     name: string;
     email: string;
+    role: string;
 }
 
 export interface Project {
     id: number;
     title: string;
     description: string;
-    status: 'pending' | 'active' | 'rejected' | 'completed';
-    budget: number;
-    start_date: string;
-    end_date: string;
-    created_at: string;
-    updated_at: string;
-    progress: number;
-    modules: Module[];
-    projectManager: {
-        name: string;
-        email: string;
-    };
-    project_users?: ProjectUser[];
+    status: string;
+    admin_id: number;
+    manager_id: number;
+    end_date?: string;
+    budget?: number;
     parts?: Part[];
-    Devs?: User[];
+    project_users?: ProjectUser[];
 }
 
 export interface PaginatedResponse<T> {
@@ -123,4 +115,16 @@ export interface PageProps<CustomProps = Record<string, unknown>> {
     rememberedState: Record<string, any>;
     errors: Record<string, string>;
     [key: string]: any;
+}
+
+export interface AcceptedProposal {
+    id: string;
+    value: string;
+}
+
+export interface AcceptedProposals {
+    goals: AcceptedProposal[];
+    startDates: AcceptedProposal[];
+    endDates: AcceptedProposal[];
+    budgets: AcceptedProposal[];
 } 

@@ -10,7 +10,6 @@ interface AppLayoutProps {
 const AppLayout = ({ children, breadcrumbs, ...props }: AppLayoutProps) => (
     <AppLayoutTemplate breadcrumbs={breadcrumbs} {...props}>
         {children}
-        <Toaster />
     </AppLayoutTemplate>
     
 );

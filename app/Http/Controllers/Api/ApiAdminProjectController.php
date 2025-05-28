@@ -132,10 +132,7 @@ class ApiAdminProjectController extends Controller
                 ->get(),
         ];
 
-        return response()->json([
-            'data' => $acceptedProposals,
-            'message' => 'Propositions acceptées récupérées avec succès'
-        ]);
+        return response()->json($acceptedProposals);
     }
 
     /**
@@ -143,6 +140,11 @@ class ApiAdminProjectController extends Controller
      */
     public function getProposalsByType(Project $project, string $type = null): JsonResponse
     {
+        \Log::info('Récupération des propositions', [
+            'project_id' => $project->id,
+            'type' => $type
+        ]);
+        
         $query = $project->proposals();
         
         if ($type) {
@@ -154,6 +156,11 @@ class ApiAdminProjectController extends Controller
         }
 
         $proposals = $query->get();
+        
+        \Log::info('Propositions trouvées', [
+            'count' => $proposals->count(),
+            'proposals' => $proposals->toArray()
+        ]);
 
         return response()->json([
             'data' => $proposals,
@@ -192,27 +199,44 @@ class ApiAdminProjectController extends Controller
      */
     public function updateProposalStatus(Request $request, ProjectProposal $proposal): JsonResponse
     {
-        // Vérifier que l'utilisateur ne valide pas sa propre proposition
-        if ($proposal->proposer_id === auth()->id()) {
+        try {
+            \Log::info('Mise à jour du statut de la proposition', [
+                'proposal_id' => $proposal->id,
+                'status' => $request->status
+            ]);
+
+            // Vérifier que l'utilisateur ne valide pas sa propre proposition
+            if ($proposal->proposer_id === auth()->id()) {
+                return response()->json([
+                    'message' => 'Vous ne pouvez pas valider/refuser votre propre proposition'
+                ], 403);
+            }
+
+            $validated = $request->validate([
+                'status' => 'required|in:accepted,rejected,pending'
+            ]);
+
+            $proposal->update([
+                'status' => $validated['status'],
+                'validator_id' => auth()->id(),
+                'validated_at' => $validated['status'] !== 'pending' ? now() : null
+            ]);
+
             return response()->json([
-                'message' => 'Vous ne pouvez pas valider/refuser votre propre proposition'
-            ], 403);
+                'data' => $proposal,
+                'message' => 'Statut de la proposition mis à jour avec succès'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Erreur lors de la mise à jour du statut', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'message' => 'Erreur lors de la mise à jour du statut',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        $validated = $request->validate([
-            'status' => 'required|in:accepted,rejected,pending'
-        ]);
-
-        $proposal->update([
-            'status' => $validated['status'],
-            'validator_id' => auth()->id(),
-            'validated_at' => $validated['status'] !== 'pending' ? now() : null
-        ]);
-
-        return response()->json([
-            'data' => $proposal,
-            'message' => 'Statut de la proposition mis à jour avec succès'
-        ]);
     }
 
     /**
@@ -220,18 +244,34 @@ class ApiAdminProjectController extends Controller
      */
     public function deleteProposal(ProjectProposal $proposal): JsonResponse
     {
-        // Vérifier que l'utilisateur est le créateur de la proposition
-        if ($proposal->proposer_id !== auth()->id()) {
+        try {
+            \Log::info('Suppression de la proposition', [
+                'proposal_id' => $proposal->id
+            ]);
+
+            // Vérifier que l'utilisateur est le créateur de la proposition
+            if ($proposal->proposer_id !== auth()->id()) {
+                return response()->json([
+                    'message' => 'Seul le créateur de la proposition peut la supprimer'
+                ], 403);
+            }
+
+            $proposal->delete();
+
             return response()->json([
-                'message' => 'Seul le créateur de la proposition peut la supprimer'
-            ], 403);
+                'message' => 'Proposition supprimée avec succès'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Erreur lors de la suppression', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'message' => 'Erreur lors de la suppression',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        $proposal->delete();
-
-        return response()->json([
-            'message' => 'Proposition supprimée avec succès'
-        ]);
     }
 
     /**
@@ -239,26 +279,43 @@ class ApiAdminProjectController extends Controller
      */
     public function editProposal(Request $request, ProjectProposal $proposal): JsonResponse
     {
-        // Vérifier que l'utilisateur est le créateur de la proposition
-        if ($proposal->proposer_id !== auth()->id()) {
+        try {
+            \Log::info('Modification de la proposition', [
+                'proposal_id' => $proposal->id,
+                'value' => $request->value
+            ]);
+
+            // Vérifier que l'utilisateur est le créateur de la proposition
+            if ($proposal->proposer_id !== auth()->id()) {
+                return response()->json([
+                    'message' => 'Seul le créateur de la proposition peut la modifier'
+                ], 403);
+            }
+
+            $validated = $request->validate([
+                'value' => 'required|string'
+            ]);
+
+            $proposal->update([
+                'value' => $validated['value'],
+                'status' => 'pending' // Réinitialiser le statut car la valeur a changé
+            ]);
+
             return response()->json([
-                'message' => 'Seul le créateur de la proposition peut la modifier'
-            ], 403);
+                'data' => $proposal,
+                'message' => 'Proposition modifiée avec succès'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Erreur lors de la modification', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'message' => 'Erreur lors de la modification',
+                'error' => $e->getMessage()
+            ], 500);
         }
-
-        $validated = $request->validate([
-            'value' => 'required|string'
-        ]);
-
-        $proposal->update([
-            'value' => $validated['value'],
-            'status' => 'pending' // Réinitialiser le statut car la valeur a changé
-        ]);
-
-        return response()->json([
-            'data' => $proposal,
-            'message' => 'Proposition modifiée avec succès'
-        ]);
     }
 
     /**
@@ -303,5 +360,37 @@ class ApiAdminProjectController extends Controller
             'data' => $project,
             'message' => 'Projet rejeté avec succès'
         ]);
+    }
+
+    /**
+     * Vérifier si l'utilisateur est admin du projet
+     */
+    public function checkAdmin(Project $project): JsonResponse
+    {
+        try {
+            \Log::info('Checking admin rights', [
+                'project_id' => $project->id,
+                'project_admin_id' => $project->admin_id,
+                'user_id' => auth()->id(),
+                'user' => auth()->user(),
+                'request_headers' => request()->headers->all()
+            ]);
+
+            $isAdmin = $project->admin_id === auth()->id();
+            
+            return response()->json([
+                'isAdmin' => $isAdmin
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error in checkAdmin', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'error' => 'Une erreur est survenue lors de la vérification des droits',
+                'details' => $e->getMessage()
+            ], 500);
+        }
     }
 } 
